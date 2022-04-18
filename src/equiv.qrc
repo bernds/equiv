@@ -1,0 +1,6 @@
+<RCC>
+  <qresource prefix="/MainWindow"/>
+  <qresource prefix="newPrefix">
+    <file>icons/Edit-undo.svg</file>
+  </qresource>
+</RCC>
