@@ -966,12 +966,15 @@ MainWindow::MainWindow (const QStringList &files)
 	connect (ui->scaleCheckBox, &QCheckBox::stateChanged, this, &MainWindow::scale_changed);
 
 	QAction *view_first = ui->menu_View->actions().at(0);
-	ui->menu_View->insertAction (view_first, ui->filesDock->toggleViewAction ());
-	ui->menu_View->insertAction (view_first, ui->toolsDock->toggleViewAction ());
-	ui->filesDock->toggleViewAction ()->setShortcut(Qt::Key_F);
-	ui->toolsDock->toggleViewAction ()->setShortcut(Qt::Key_T);
+	QAction *fa = ui->filesDock->toggleViewAction ();
+	QAction *ta = ui->toolsDock->toggleViewAction ();
+	ui->menu_View->insertAction (view_first, fa);
+	ui->menu_View->insertAction (view_first, ta);
+	fa->setShortcut(Qt::Key_F);
+	ta->setShortcut(Qt::Key_T);
 
 	addActions ({ ui->action_Quit });
+	addActions ({ fa, ta });
 	addActions ({ ui->action_ShowMenubar });
 	addActions ({ ui->action_Scale });
 	addActions ({ ui->action_Next, ui->action_Prev, ui->action_Slideshow, ui->action_Stop });
