@@ -48,6 +48,7 @@ namespace Ui
 
 class ClickablePixmap;
 class QActionGroup;
+class QKeyEvent;
 
 #include <QMutex>
 #include <QSemaphore>
@@ -158,6 +159,9 @@ class MainWindow: public QMainWindow
 
 	void image_mouse_event (QMouseEvent *);
 	void image_wheel_event (QWheelEvent *);
+
+	void keyPressEvent (QKeyEvent *) override;
+	void keyReleaseEvent (QKeyEvent *) override;
 
 	void update_selection ();
 	void next_image (bool);

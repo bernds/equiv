@@ -170,7 +170,14 @@ void MainWindow::help_about ()
 {
 	QString txt = "<p>" PACKAGE "</p>";
 	txt = tr ("<p>Copyright \u00a9 2022\nBernd Schmidt &lt;bernds_cb1@t-online.de&gt;</p>");
-	txt += tr ("<p>This is a simple image viewer.</p>");
+	txt += tr ("<p>This is a simple image viewer that allows for some simple nondestructive editing.</p>"
+		   "<p>Space and 'b' go forward and backward in the list of images.</p>"
+		   "<p>Use 'f' and 't' to show or hide the files and tools panes.</p>"
+		   "<p>Use 'z' to toggle scaling.</p>"
+		   "<p>Press 'F5' to start a randomized slideshow.</p>"
+		   "<o>Using Ctrl-'c' and Ctrl-'v', or the "
+		   "corresponding buttons in the tools pane, you can copy and paste edit settings such as "
+		   "white balance.</p><p>See the README for more information.</p>");
 
 	QMessageBox mb (this);
 	mb.setWindowTitle (PACKAGE);
@@ -815,6 +822,35 @@ void MainWindow::clear_gamma (bool)
 	enqueue_render (m_idx, true);
 }
 
+void MainWindow::keyPressEvent (QKeyEvent *e)
+{
+	switch (e->key ())
+	{
+		case Qt::Key_Alt:
+			menuBar ()->show ();
+			break;
+
+		default:
+			break;
+	}
+	QMainWindow::keyPressEvent (e);
+}
+
+void MainWindow::keyReleaseEvent (QKeyEvent *e)
+{
+	switch (e->key ())
+	{
+		case Qt::Key_Alt:
+			if (!ui->action_ShowMenubar->isChecked ())
+				menuBar ()->hide ();
+			break;
+
+		default:
+			break;
+	}
+	QMainWindow::keyPressEvent (e);
+}
+
 void MainWindow::restore_geometry ()
 {
 	QSettings settings;
@@ -822,8 +858,8 @@ void MainWindow::restore_geometry ()
 	restoreState (settings.value("mainwin/windowState").toByteArray());
 	if (settings.contains("mainwin/scaleState"))
 		ui->scaleCheckBox->setChecked (settings.value("mainwin/scaleState").toBool ());
-	ui->action_HideTools->setChecked (!ui->toolsDock->isVisibleTo (this));
-	ui->action_HideFiles->setChecked (!ui->filesDock->isVisibleTo (this));
+	if (settings.contains("mainwin/showmenu"))
+		ui->action_ShowMenubar->setChecked (settings.value("mainwin/showmenu").toBool ());
 }
 
 void MainWindow::closeEvent (QCloseEvent *event)
@@ -835,6 +871,7 @@ void MainWindow::closeEvent (QCloseEvent *event)
 	QSettings settings;
 	settings.setValue ("mainwin/geometry", saveGeometry ());
 	settings.setValue ("mainwin/windowState", saveState ());
+	settings.setValue ("mainwin/showmenu", ui->action_ShowMenubar->isChecked ());
 	settings.setValue ("mainwin/scaleState", ui->scaleCheckBox->isChecked ());
 
 	QMainWindow::closeEvent (event);
@@ -859,7 +896,11 @@ MainWindow::MainWindow (const QStringList &files)
 	ui->setupUi (this);
 	ui->imageView->setScene (&m_canvas);
 
+	ui->action_ShowMenubar->setChecked (true);
+
 	restore_geometry ();
+
+	menuBar ()->setVisible (ui->action_ShowMenubar->isChecked ());
 	statusBar ()->hide ();
 	start_threads ();
 
@@ -895,13 +936,12 @@ MainWindow::MainWindow (const QStringList &files)
 	connect (ui->imageView, &SizeGraphicsView::mouse_event, this, &MainWindow::image_mouse_event);
 	connect (ui->imageView, &SizeGraphicsView::wheel_event, this, &MainWindow::image_wheel_event);
 
-	connect (ui->action_HideTools, &QAction::toggled, [this] (bool v) { ui->toolsDock->setVisible (!v); m_resize_timer.start (10); });
-	connect (ui->action_HideFiles, &QAction::toggled, [this] (bool v) { ui->filesDock->setVisible (!v); m_resize_timer.start (10); });
-
 	connect (ui->action_Next, &QAction::triggered, this, &MainWindow::next_image);
 	connect (ui->action_Prev, &QAction::triggered, this, &MainWindow::prev_image);
 	connect (ui->action_Slideshow, &QAction::triggered, this, &MainWindow::start_slideshow);
 	connect (ui->action_Stop, &QAction::triggered, this, &MainWindow::stop);
+
+	connect (ui->action_ShowMenubar, &QAction::toggled, [&] (bool v) { menuBar ()->setVisible (v); });
 
 	connect (ui->wbColButton, &QPushButton::clicked, this, &MainWindow::choose_wb_color);
 	connect (ui->wbClearButton, &QPushButton::clicked, this, &MainWindow::clear_wb);
@@ -919,11 +959,20 @@ MainWindow::MainWindow (const QStringList &files)
 
 	connect (ui->action_Quit, &QAction::triggered, this, &MainWindow::close);
 
+	connect (ui->action_About, &QAction::triggered, this, &MainWindow::help_about);
+	connect (ui->action_AboutQt, &QAction::triggered, [=] (bool) { QMessageBox::aboutQt (this); });
+
 	connect (ui->action_Scale, &QAction::triggered, ui->scaleCheckBox, &QCheckBox::toggle);
 	connect (ui->scaleCheckBox, &QCheckBox::stateChanged, this, &MainWindow::scale_changed);
 
+	QAction *view_first = ui->menu_View->actions().at(0);
+	ui->menu_View->insertAction (view_first, ui->filesDock->toggleViewAction ());
+	ui->menu_View->insertAction (view_first, ui->toolsDock->toggleViewAction ());
+	ui->filesDock->toggleViewAction ()->setShortcut(Qt::Key_F);
+	ui->toolsDock->toggleViewAction ()->setShortcut(Qt::Key_T);
+
 	addActions ({ ui->action_Quit });
-	addActions ({ ui->action_HideFiles, ui->action_HideTools });
+	addActions ({ ui->action_ShowMenubar });
 	addActions ({ ui->action_Scale });
 	addActions ({ ui->action_Next, ui->action_Prev, ui->action_Slideshow, ui->action_Stop });
 
