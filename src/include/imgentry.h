@@ -16,6 +16,8 @@ struct img
 	int l_minr = 0, l_ming = 0, l_minb = 0, l_minavg = 0;
 	QPixmap corrected {};
 	QPixmap scaled {};
+	double border_avgh = 0;
+	double border_avgv = 0;
 
 	~img ();
 };

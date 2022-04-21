@@ -33,6 +33,8 @@
 #include "imgentry.h"
 #include "util-widgets.h"
 
+#include "prefsdlg.h"
+
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
@@ -374,6 +376,35 @@ QString MainWindow::load (int idx, bool do_queue)
 			entry.hash = QString ();
 			return QString ();
 		}
+		int w = pm.width ();
+		int h = pm.height ();
+		if (w > 2 && h > 2) {
+			QImage img = pm.toImage ();
+			uint64_t ravg = 0;
+			uint64_t gavg = 0;
+			uint64_t bavg = 0;
+			for (int x = 1; x < w - 1; x++) {
+				QColor c1 = img.pixel (x, 0);
+				QColor c2 = img.pixel (x, h - 1);
+				ravg += c1.red () + c2.red ();
+				gavg += c1.green () + c2.green ();
+				bavg += c1.blue () + c2.blue ();
+			}
+			entry.images->border_avgh = ravg * 0.21 + gavg * 0.72 + bavg * 0.07;
+			entry.images->border_avgh /= 2 * (w - 2);
+			entry.images->border_avgh /= 255;
+			ravg = gavg = bavg = 0;
+			for (int y = 0; y < h; y++) {
+				QColor c1 = img.pixel (0, y);
+				QColor c2 = img.pixel (w - 1, y);
+				ravg += c1.red () + c2.red ();
+				gavg += c1.green () + c2.green ();
+				bavg += c1.blue () + c2.blue ();
+			}
+			entry.images->border_avgv = ravg * 0.21 + gavg * 0.72 + bavg * 0.07;
+			entry.images->border_avgv /= 2 * h;
+			entry.images->border_avgv /= 255;
+		}
 		QFile f (path);
 		f.open (QIODevice::ReadOnly);
 		// MD5 is apparently quite bad, but it is supposed to be used to
@@ -395,6 +426,39 @@ QString MainWindow::load (int idx, bool do_queue)
 	return entry.name;
 }
 
+void MainWindow::update_background ()
+{
+	if (m_idx == -1)
+		return;
+
+	auto &entry = m_model.vec[m_idx];
+	img *img = entry.images.get ();
+	if (img == nullptr || img->on_disk.isNull ())
+		return;
+	QSize viewsz = ui->imageView->viewport ()->size ();
+	QSize imgsz = img->on_disk.size ();
+	// vx / vy > ix / iy: image is taller, use side entries.
+	double v = imgsz.height () * viewsz.width () > imgsz.width () * viewsz.height () ? img->border_avgv : img->border_avgh;
+	QSettings settings;
+	int style = 0;
+	if (settings.contains ("mainwin/background"))
+		style = settings.value ("mainwin/background").toInt ();
+	char chex[10] = "";
+	if (style == 5) {
+		sprintf (chex, "#%02x%02x%02x", (int)(255 * v), (int)(255 * v), (int)(255 * v));
+	}
+
+	// You'd think this should be using linear RGB somehow, but this seems to work better
+	// than anything else I tried.
+	QColor c (style == 5 ? QColor (chex)
+		  : style == 0 ? QColor (Qt::black)
+		  : style == 1 ? QColor ("#404040")
+		  : style == 2 ? QColor ("#808080")
+		  : style == 3 ? QColor ("#c0c0c0")
+		  : QColor (Qt::white));
+	ui->imageView->setBackgroundBrush (c);
+}
+
 void MainWindow::rescale_current ()
 {
 	if (m_idx == -1)
@@ -406,6 +470,8 @@ void MainWindow::rescale_current ()
 	img *img = entry.images.get ();
 	if (img->on_disk.isNull ())
 		return;
+
+	update_background ();
 
 	Renderer *r = m_renderer;
 	r->mutex.lock ();
@@ -879,6 +945,14 @@ void MainWindow::closeEvent (QCloseEvent *event)
 	QMainWindow::closeEvent (event);
 }
 
+void MainWindow::prefs ()
+{
+	PrefsDialog dlg (this);
+	if (dlg.exec ()) {
+		update_background ();
+	}
+}
+
 /* Don't do this in the constructor to avoid threads going active before it's finished.  */
 void MainWindow::perform_setup ()
 {
@@ -959,6 +1033,7 @@ MainWindow::MainWindow (const QStringList &files)
 	connect (ui->action_Copy, &QAction::triggered, this, &MainWindow::do_copy);
 	connect (ui->action_Paste, &QAction::triggered, this, &MainWindow::do_paste);
 
+	connect (ui->action_Preferences, &QAction::triggered, this, &MainWindow::prefs);
 	connect (ui->action_Quit, &QAction::triggered, this, &MainWindow::close);
 
 	connect (ui->action_About, &QAction::triggered, this, &MainWindow::help_about);

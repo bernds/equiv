@@ -163,6 +163,8 @@ class MainWindow: public QMainWindow
 	void keyPressEvent (QKeyEvent *) override;
 	void keyReleaseEvent (QKeyEvent *) override;
 
+	void update_background ();
+
 	void update_selection ();
 	void next_image (bool);
 	void prev_image (bool);
@@ -185,6 +187,7 @@ class MainWindow: public QMainWindow
 
 	void perform_setup ();
 
+	void prefs ();
 	void help_about ();
 protected:
 	void closeEvent(QCloseEvent *event) override;

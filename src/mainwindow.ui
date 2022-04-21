@@ -29,8 +29,11 @@
     </property>
     <item>
      <widget class="SizeGraphicsView" name="imageView">
+      <property name="frameShape">
+       <enum>QFrame::NoFrame</enum>
+      </property>
       <property name="backgroundBrush">
-       <brush brushstyle="Dense5Pattern">
+       <brush brushstyle="SolidPattern">
         <color alpha="255">
          <red>0</red>
          <green>0</green>
@@ -70,8 +73,15 @@
     </property>
     <addaction name="action_Quit"/>
    </widget>
+   <widget class="QMenu" name="menuSettings">
+    <property name="title">
+     <string>&amp;Settings</string>
+    </property>
+    <addaction name="action_Preferences"/>
+   </widget>
    <addaction name="menu_File"/>
    <addaction name="menu_View"/>
+   <addaction name="menuSettings"/>
    <addaction name="menu_Help"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
@@ -655,6 +665,11 @@
   <action name="action_AboutQt">
    <property name="text">
     <string>About &amp;Qt...</string>
+   </property>
+  </action>
+  <action name="action_Preferences">
+   <property name="text">
+    <string>&amp;Preferences</string>
    </property>
   </action>
  </widget>

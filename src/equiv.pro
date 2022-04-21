@@ -1,13 +1,14 @@
 TEMPLATE	      = app
 CONFIG		     += qt warn_on force_debug_info thread c++17
-FORMS		      = mainwindow.ui
+FORMS		      = mainwindow.ui prefsdialog.ui
 
 HEADERS		      = include/colors.h \
                         include/mainwindow.h \
+                        include/prefsdlg.h \
                         include/util-widgets.h
 
 SOURCES		      = main.cc util-widgets.cc \
-                        renderer.cc tables.cc
+                        prefsdlg.cc renderer.cc tables.cc
 
 isEmpty(PREFIX) {
 PREFIX = /usr/local
