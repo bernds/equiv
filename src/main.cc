@@ -360,12 +360,14 @@ QString MainWindow::load (int idx, bool do_queue)
 	if (entry.images->on_disk.isNull () || entry.images->mtime != info.lastModified ())
 	{
 		if (!entry.images->on_disk.isNull ()) {
-			/* Flush the render thread, then remove old images.  */
+			/* Files were modified.  Flush the render thread, then remove old images.  */
 			m_renderer->completion_sem.acquire ();
 			m_renderer->completion_sem.release ();
 			entry.images->linear = QImage ();
 			entry.images->corrected = QPixmap ();
 			entry.images->scaled = QPixmap ();
+			/* We'll load new adjustments, if any, later.  */
+			entry.tweaks = m_no_tweaks;
 		}
 		QPixmap pm;
 		if (!pm.load (path)) {
