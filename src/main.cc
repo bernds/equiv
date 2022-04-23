@@ -719,14 +719,28 @@ void MainWindow::perform_resizes ()
 	rescale_current ();
 }
 
+void MainWindow::sync_to_db ()
+{
+	if (m_db_queue.isEmpty ())
+		return;
+	m_db.transaction ();
+
+	QSqlQuery q (m_db);
+	while (!m_db_queue.isEmpty ()) {
+		QString s = m_db_queue.takeFirst ();
+		q.exec (s);
+	}
+	m_db.commit ();
+}
+
 void MainWindow::send_tweaks_to_db (const dir_entry &entry)
 {
 	QString str = entry.tweaks.to_string ();
 	QSqlQuery q (m_db);
 	QString qstr = QString ("replace into img_tweaks(md5, tweaks) values(\'%1\', \'%2\')").arg (entry.hash, str);
-	if (!q.exec (qstr)) {
-		// Put up a warning icon?
-	}
+	if (m_db_queue.isEmpty ())
+		m_db_timer.start ();
+	m_db_queue << qstr;
 }
 
 void MainWindow::update_adjustments ()
@@ -935,6 +949,8 @@ void MainWindow::closeEvent (QCloseEvent *event)
 	setWindowState (Qt::WindowNoState);
 	m_slide_timer.stop ();
 	m_resize_timer.stop ();
+	m_db_timer.stop ();
+	sync_to_db ();
 
 	QSettings settings;
 	settings.setValue ("mainwin/geometry", saveGeometry ());
@@ -1006,6 +1022,9 @@ MainWindow::MainWindow (const QStringList &files)
 
 	m_slide_timer.setSingleShot (true);
 	connect (&m_slide_timer, &QTimer::timeout, this, &MainWindow::slide_elapsed);
+
+	m_db_timer.setInterval (3000);
+	connect (&m_db_timer, &QTimer::timeout, this, &MainWindow::sync_to_db);
 
 	connect (ui->imageView, &SizeGraphicsView::resized, [this] () { m_resize_timer.start (10); });
 

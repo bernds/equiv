@@ -84,8 +84,10 @@ class MainWindow: public QMainWindow
 	QTimer m_setup_timer;
 	QTimer m_resize_timer;
 	QTimer m_slide_timer;
+	QTimer m_db_timer;
 
 	QSqlDatabase m_db;
+	QStringList m_db_queue;
 
 	Renderer *m_renderer;
 	bool m_render_queued = false;
@@ -181,6 +183,8 @@ class MainWindow: public QMainWindow
 	bool switch_to (int idx);
 
 	void send_tweaks_to_db (const dir_entry &);
+	void sync_to_db ();
+
 	void discard_entries ();
 	void scan_cwd ();
 	void scan (const QString &);
