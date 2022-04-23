@@ -62,23 +62,23 @@ void Renderer::slot_render (int idx, img *e, img_tweaks *tw, int w, int h)
 
 	if (!abort_render) {
 		if (linear.isNull ()) {
-			linear = pm.toImage ().convertToFormat (QImage::Format_RGB30);
+			linear = pm.toImage ().convertToFormat (QImage::Format_RGBA64);
 			if (!linear.colorSpace ().isValid ())
 				linear.setColorSpace (QColorSpace::SRgb);
 			linear.convertToColorSpace (QColorSpace::SRgbLinear);
 			auto bits1 = linear.bits ();
-			uint32_t *bits = (uint32_t *)bits1;
+			uint64_t *bits = (uint64_t *)bits1;
 			QSize sz = linear.size ();
 			long count = (long)sz.width () * (long)sz.height ();
-			int32_t maxr = 1, maxg = 1, maxb = 1;
-			int32_t minr = 1023, ming = 1023, minb = 1023, mina = 1023;
+			int maxr = 1, maxg = 1, maxb = 1;
+			int minr = 65535, ming = 65535, minb = 65535, mina = 65535;
 			for (long i = 0; i < count; i++) {
-				uint32_t v = *bits;
-				int b = v & 0x3ff;
-				v >>= 10;
-				int g = v & 0x3ff;
-				v >>= 10;
-				int r = v & 0x3ff;
+				uint64_t v = *bits;
+				int b = v & 65535;
+				v >>= 16;
+				int g = v & 65535;
+				v >>= 16;
+				int r = v & 65535;
 
 				maxr = std::max (r, maxr);
 				maxg = std::max (g, maxg);
@@ -108,44 +108,45 @@ void Renderer::slot_render (int idx, img *e, img_tweaks *tw, int w, int h)
 		double fg = (double)wmax / wg;
 		double fb = (double)wmax / wb;
 
-		double rlimit = 1023. / (e->l_maxr * fr);
-		double glimit = 1023. / (e->l_maxg * fg);
-		double blimit = 1023. / (e->l_maxb * fb);
+		double rlimit = 65535. / (e->l_maxr * fr);
+		double glimit = 65535. / (e->l_maxg * fg);
+		double blimit = 65535. / (e->l_maxb * fb);
 		double limit = std::min ({ 1.0, rlimit, glimit, blimit });
 		if (corrected.isNull ()) {
 			QImage tmp = linear;
 			double gammaval = 1 + tw->gamma / 100.1;
 			if (tw->blacklevel != 0 || tw->gamma != 0 || tw->white != Qt::white) {
 				auto bits1 = tmp.bits ();
-				uint32_t *bits = (uint32_t *)bits1;
+				uint64_t *bits = (uint64_t *)bits1;
 				QSize sz = tmp.size ();
 				long count = (long)sz.width () * (long)sz.height ();
-				uint32_t black = tw->blacklevel * 4;
-				float scale = 1024. / (1024. - black);
+				uint64_t black = tw->blacklevel * 256;
+				float scale = 65536. / (65536. - black);
 				// printf ("black %d max %d %d %d scales: %f %f %f limit: %f\n", (int)black, e->l_maxr, e->l_maxg, e->l_maxb, fr, fg, fb, limit);
 				scale *= limit;
 				black *= scale;
 				for (long i = 0; i < count; i++) {
-					uint32_t v = *bits;
-					int32_t b = v & 0x3ff;
-					v >>= 10;
-					int32_t g = v & 0x3ff;
-					v >>= 10;
-					int32_t r = v & 0x3ff;
-
-					r = std::clamp ((int32_t)(r * fr * scale - black), 0, 1023);
-					g = std::clamp ((int32_t)(g * fg * scale - black), 0, 1023);
-					b = std::clamp ((int32_t)(b * fb * scale - black), 0, 1023);
+					uint64_t v = *bits;
+					int r = v & 65535;
+					v >>= 16;
+					int g = v & 65535;
+					v >>= 16;
+					int b = v & 65535;
+					v >>= 16;
+					r = std::clamp ((int)(r * fr * scale - black), 0, 65535);
+					g = std::clamp ((int)(g * fg * scale - black), 0, 65535);
+					b = std::clamp ((int)(b * fb * scale - black), 0, 65535);
 
 					if (gammaval != 1) {
-						r = pow (r / 1023., gammaval) * 1023;
-						g = pow (g / 1023., gammaval) * 1023;
-						b = pow (b / 1023., gammaval) * 1023;
+						r = pow (r / 65535., gammaval) * 65535;
+						g = pow (g / 65535., gammaval) * 65535;
+						b = pow (b / 65535., gammaval) * 65535;
 					}
-					v = r << 10;
+					v <<= 32;
+					v |= b << 16;
 					v |= g;
-					v <<= 10;
-					v |= b;
+					v <<= 16;
+					v |= r;
 					*bits++ = v;
 				}
 			}

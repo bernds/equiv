@@ -760,9 +760,9 @@ void MainWindow::do_autoblack (bool)
 		return;
 	// printf ("min %d %d %d %d\n", entry.images->l_minr, entry.images->l_ming, entry.images->l_minb, entry.images->l_minavg);
 #if 0
-	ui->blackSlider->setValue (std::min ({ entry.images->l_minr, entry.images->l_ming, entry.images->l_minb }) / 4);
+	ui->blackSlider->setValue (std::min ({ entry.images->l_minr, entry.images->l_ming, entry.images->l_minb }) / 256);
 #else
-	ui->blackSlider->setValue (entry.images->l_minavg / 4);
+	ui->blackSlider->setValue (entry.images->l_minavg / 256);
 #endif
 }
 
