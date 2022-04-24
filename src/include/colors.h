@@ -37,4 +37,12 @@ static inline QColor linear_to_srgb (QColor corig)
 		       linear_to_srgb (corig.blue () / 255.));
 }
 
+// The numbers you find on the internet for luminosity conversion are 0.2121, 0.7152 and 0.0722.
+// To avoid rounding errors, we choose values that are very close but multiples of a power of two.
+constexpr double l_factor_r = 13933 / 65536.;
+constexpr double l_factor_g = 46871 / 65536.;
+constexpr double l_factor_b = 4732 / 65536.;
+
+static_assert(l_factor_r + l_factor_g + l_factor_b == 1);
+
 #endif

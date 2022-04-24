@@ -30,6 +30,7 @@ struct img_tweaks
 	/* A range of -100 to 100 given by the GUI, translated into a reasonable 
 	   gamma curve by the rendering code.  */
 	int gamma = 0;
+	int sat = 0;
 
 	QString to_string () const;
 	void from_string (QString s);

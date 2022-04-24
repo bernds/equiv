@@ -51,20 +51,34 @@ QString img_tweaks::to_string () const
 		+ "," + QString::number (gamma)
 		+ "," + QString::number (white.red ())
 		+ "," + QString::number (white.green ())
-		+ "," + QString::number (white.blue ()));
+		+ "," + QString::number (white.blue ())
+		+ "," + QString::number (sat));
 }
 
 void img_tweaks::from_string (QString s)
 {
-	static QRegularExpression re ("(\\d+),(-?\\d+),(\\d+),(\\d+),(\\d+)");
+	static QRegularExpression re1 ("(\\d+),(-?\\d+),(\\d+),(\\d+),(\\d+),(-?\\d+)");
+	static QRegularExpression re2 ("(\\d+),(-?\\d+),(\\d+),(\\d+),(\\d+)");
 
-	auto result = re.match (s);
-	if (result.hasMatch ()) {
-		blacklevel = result.captured (1).toInt ();
-		gamma = result.captured (2).toInt ();
-		white.setRed (result.captured (3).toInt ());
-		white.setGreen (result.captured (4).toInt ());
-		white.setBlue (result.captured (5).toInt ());
+	auto result1 = re1.match (s);
+	if (result1.hasMatch ()) {
+		blacklevel = result1.captured (1).toInt ();
+		gamma = result1.captured (2).toInt ();
+		white.setRed (result1.captured (3).toInt ());
+		white.setGreen (result1.captured (4).toInt ());
+		white.setBlue (result1.captured (5).toInt ());
+		sat = result1.captured (6).toInt ();
+		return;
+	}
+	auto result2 = re2.match (s);
+	if (result2.hasMatch ()) {
+		blacklevel = result2.captured (1).toInt ();
+		gamma = result2.captured (2).toInt ();
+		white.setRed (result2.captured (3).toInt ());
+		white.setGreen (result2.captured (4).toInt ());
+		white.setBlue (result2.captured (5).toInt ());
+		sat = 0;
+		return;
 	}
 }
 
@@ -390,7 +404,7 @@ QString MainWindow::load (int idx, bool do_queue)
 				gavg += c1.green () + c2.green ();
 				bavg += c1.blue () + c2.blue ();
 			}
-			entry.images->border_avgh = ravg * 0.21 + gavg * 0.72 + bavg * 0.07;
+			entry.images->border_avgh = ravg * l_factor_r + gavg * l_factor_g + bavg * l_factor_b;
 			entry.images->border_avgh /= 2 * (w - 2);
 			entry.images->border_avgh /= 255;
 			ravg = gavg = bavg = 0;
@@ -401,7 +415,7 @@ QString MainWindow::load (int idx, bool do_queue)
 				gavg += c1.green () + c2.green ();
 				bavg += c1.blue () + c2.blue ();
 			}
-			entry.images->border_avgv = ravg * 0.21 + gavg * 0.72 + bavg * 0.07;
+			entry.images->border_avgv = ravg * l_factor_r + gavg * l_factor_g + bavg * l_factor_b;
 			entry.images->border_avgv /= 2 * h;
 			entry.images->border_avgv /= 255;
 		}
@@ -551,6 +565,7 @@ void MainWindow::update_tweaks_ui (const dir_entry &entry)
 	bool_changer bc (m_inhibit_updates, true);
 	ui->blackSlider->setValue (entry.tweaks.blacklevel);
 	ui->gammaSlider->setValue (entry.tweaks.gamma);
+	ui->satSlider->setValue (entry.tweaks.sat);
 	update_wbcol_button (entry.tweaks.white);
 }
 
@@ -754,6 +769,7 @@ void MainWindow::update_adjustments ()
 
 	entry.tweaks.blacklevel = ui->blackSlider->value ();
 	entry.tweaks.gamma = ui->gammaSlider->value ();
+	entry.tweaks.sat = ui->satSlider->value ();
 
 	send_tweaks_to_db (entry);
 	enqueue_render (m_idx, true);
@@ -807,6 +823,10 @@ void MainWindow::do_paste (bool)
 	if (ui->pasteGCheckBox->isChecked ()) {
 		changed |= entry.tweaks.gamma != m_copied_tweaks.gamma;
 		entry.tweaks.gamma = m_copied_tweaks.gamma;
+	}
+	if (ui->pasteSCheckBox->isChecked ()) {
+		changed |= entry.tweaks.sat != m_copied_tweaks.sat;
+		entry.tweaks.sat = m_copied_tweaks.sat;
 	}
 	if (ui->pasteWBCheckBox->isChecked ()) {
 		changed |= entry.tweaks.white != m_copied_tweaks.white;
@@ -899,6 +919,25 @@ void MainWindow::clear_gamma (bool)
 		bool_changer bc (m_inhibit_updates, true);
 		entry.tweaks.gamma = 0;
 		ui->gammaSlider->setValue (0);
+	}
+	send_tweaks_to_db (entry);
+	enqueue_render (m_idx, true);
+}
+
+void MainWindow::clear_sat (bool)
+{
+	if (m_idx == -1)
+		return;
+
+	auto &entry = m_model.vec[m_idx];
+	if (entry.images.get () == nullptr || entry.images->on_disk.isNull ())
+		return;
+	if (entry.tweaks.sat == 0)
+		return;
+	{
+		bool_changer bc (m_inhibit_updates, true);
+		entry.tweaks.sat = 0;
+		ui->satSlider->setValue (0);
 	}
 	send_tweaks_to_db (entry);
 	enqueue_render (m_idx, true);
@@ -1042,9 +1081,11 @@ MainWindow::MainWindow (const QStringList &files)
 	connect (ui->wbClearButton, &QPushButton::clicked, this, &MainWindow::clear_wb);
 	connect (ui->blackClearButton, &QPushButton::clicked, this, &MainWindow::clear_black);
 	connect (ui->gammaClearButton, &QPushButton::clicked, this, &MainWindow::clear_gamma);
+	connect (ui->satClearButton, &QPushButton::clicked, this, &MainWindow::clear_sat);
 	connect (ui->blackAutoButton, &QPushButton::clicked, this, &MainWindow::do_autoblack);
 	connect (ui->blackSlider, &QSlider::valueChanged, [this] (int) { update_adjustments (); });
 	connect (ui->gammaSlider, &QSlider::valueChanged, [this] (int) { update_adjustments (); });
+	connect (ui->satSlider, &QSlider::valueChanged, [this] (int) { update_adjustments (); });
 	connect (ui->tweaksGroupBox, &QGroupBox::toggled, [this] (bool) { update_adjustments (); });
 
 	ui->copyButton->setDefaultAction (ui->action_Copy);

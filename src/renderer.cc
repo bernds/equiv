@@ -115,7 +115,8 @@ void Renderer::slot_render (int idx, img *e, img_tweaks *tw, int w, int h)
 		if (corrected.isNull ()) {
 			QImage tmp = linear;
 			double gammaval = 1 + tw->gamma / 100.1;
-			if (tw->blacklevel != 0 || tw->gamma != 0 || tw->white != Qt::white) {
+			double satval = -tw->sat / 100.;
+			if (tw->blacklevel != 0 || tw->sat != 0 || tw->gamma != 0 || tw->white != Qt::white) {
 				auto bits1 = tmp.bits ();
 				uint64_t *bits = (uint64_t *)bits1;
 				QSize sz = tmp.size ();
@@ -137,6 +138,12 @@ void Renderer::slot_render (int idx, img *e, img_tweaks *tw, int w, int h)
 					g = std::clamp ((int)(g * fg * scale - black), 0, 65535);
 					b = std::clamp ((int)(b * fb * scale - black), 0, 65535);
 
+					if (satval != 0) {
+						int lumi = r * l_factor_r + g * l_factor_g + b * l_factor_b;
+						r = std::clamp ((int)(r + satval * (lumi - r)), 0, 65535);
+						g = std::clamp ((int)(g + satval * (lumi - g)), 0, 65535);
+						b = std::clamp ((int)(b + satval * (lumi - b)), 0, 65535);
+					}
 					if (gammaval != 1) {
 						r = pow (r / 65535., gammaval) * 65535;
 						g = pow (g / 65535., gammaval) * 65535;

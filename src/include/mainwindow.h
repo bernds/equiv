@@ -155,6 +155,7 @@ class MainWindow: public QMainWindow
 	void clear_wb (bool = false);
 	void clear_black (bool = false);
 	void clear_gamma (bool = false);
+	void clear_sat (bool = false);
 
 	void slot_render_complete (int idx);
 	void slot_save_as (bool);
