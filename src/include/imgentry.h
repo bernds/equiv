@@ -27,6 +27,7 @@ struct img_tweaks
 	/* White balance.  */
 	QColor white = Qt::white;
 	int blacklevel = 0;
+	int brightness = 0;
 	/* A range of -100 to 100 given by the GUI, translated into a reasonable 
 	   gamma curve by the rendering code.  */
 	int gamma = 0;

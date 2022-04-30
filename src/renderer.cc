@@ -116,13 +116,15 @@ void Renderer::slot_render (int idx, img *e, img_tweaks *tw, int w, int h)
 			QImage tmp = linear;
 			double gammaval = 1 + tw->gamma / 100.1;
 			double satval = -tw->sat / 100.;
-			if (tw->blacklevel != 0 || tw->sat != 0 || tw->gamma != 0 || tw->white != Qt::white) {
+			double bright = 1 + tw->brightness / 100.;
+
+			if (tw->blacklevel != 0 || tw->brightness != 0 || tw->sat != 0 || tw->gamma != 0 || tw->white != Qt::white) {
 				auto bits1 = tmp.bits ();
 				uint64_t *bits = (uint64_t *)bits1;
 				QSize sz = tmp.size ();
 				long count = (long)sz.width () * (long)sz.height ();
 				uint64_t black = tw->blacklevel * 256;
-				float scale = 65536. / (65536. - black);
+				float scale = bright * 65536. / (65536. - black);
 				// printf ("black %d max %d %d %d scales: %f %f %f limit: %f\n", (int)black, e->l_maxr, e->l_maxg, e->l_maxb, fr, fg, fb, limit);
 				scale *= limit;
 				black *= scale;

@@ -52,13 +52,15 @@ QString img_tweaks::to_string () const
 		+ "," + QString::number (white.red ())
 		+ "," + QString::number (white.green ())
 		+ "," + QString::number (white.blue ())
-		+ "," + QString::number (sat));
+		+ "," + QString::number (sat)
+		+ "," + QString::number (brightness));
 }
 
 void img_tweaks::from_string (QString s)
 {
-	static QRegularExpression re1 ("(\\d+),(-?\\d+),(\\d+),(\\d+),(\\d+),(-?\\d+)");
-	static QRegularExpression re2 ("(\\d+),(-?\\d+),(\\d+),(\\d+),(\\d+)");
+	static QRegularExpression re1 ("(\\d+),(-?\\d+),(\\d+),(\\d+),(\\d+),(-?\\d+),(-?\\d+)");
+	static QRegularExpression re2 ("(\\d+),(-?\\d+),(\\d+),(\\d+),(\\d+),(-?\\d+)");
+	static QRegularExpression re3 ("(\\d+),(-?\\d+),(\\d+),(\\d+),(\\d+)");
 
 	auto result1 = re1.match (s);
 	if (result1.hasMatch ()) {
@@ -68,6 +70,7 @@ void img_tweaks::from_string (QString s)
 		white.setGreen (result1.captured (4).toInt ());
 		white.setBlue (result1.captured (5).toInt ());
 		sat = result1.captured (6).toInt ();
+		brightness = result1.captured (7).toInt ();
 		return;
 	}
 	auto result2 = re2.match (s);
@@ -77,6 +80,16 @@ void img_tweaks::from_string (QString s)
 		white.setRed (result2.captured (3).toInt ());
 		white.setGreen (result2.captured (4).toInt ());
 		white.setBlue (result2.captured (5).toInt ());
+		sat = result2.captured (6).toInt ();
+		return;
+	}
+	auto result3 = re3.match (s);
+	if (result3.hasMatch ()) {
+		blacklevel = result3.captured (1).toInt ();
+		gamma = result3.captured (2).toInt ();
+		white.setRed (result3.captured (3).toInt ());
+		white.setGreen (result3.captured (4).toInt ());
+		white.setBlue (result3.captured (5).toInt ());
 		sat = 0;
 		return;
 	}
@@ -564,6 +577,7 @@ void MainWindow::update_tweaks_ui (const dir_entry &entry)
 {
 	bool_changer bc (m_inhibit_updates, true);
 	ui->blackSlider->setValue (entry.tweaks.blacklevel);
+	ui->brightSlider->setValue (entry.tweaks.brightness);
 	ui->gammaSlider->setValue (entry.tweaks.gamma);
 	ui->satSlider->setValue (entry.tweaks.sat);
 	update_wbcol_button (entry.tweaks.white);
@@ -767,6 +781,7 @@ void MainWindow::update_adjustments ()
 	if (entry.images.get () == nullptr || entry.images->on_disk.isNull ())
 		return;
 
+	entry.tweaks.brightness = ui->brightSlider->value ();
 	entry.tweaks.blacklevel = ui->blackSlider->value ();
 	entry.tweaks.gamma = ui->gammaSlider->value ();
 	entry.tweaks.sat = ui->satSlider->value ();
@@ -816,6 +831,10 @@ void MainWindow::do_paste (bool)
 	if (entry.images.get () == nullptr || entry.images->on_disk.isNull ())
 		return;
 	bool changed = false;
+	if (ui->pasteBriteCheckBox->isChecked ()) {
+		changed |= entry.tweaks.brightness != m_copied_tweaks.brightness;
+		entry.tweaks.brightness = m_copied_tweaks.brightness;
+	}
 	if (ui->pasteBCheckBox->isChecked ()) {
 		changed |= entry.tweaks.blacklevel != m_copied_tweaks.blacklevel;
 		entry.tweaks.blacklevel = m_copied_tweaks.blacklevel;
@@ -900,6 +919,25 @@ void MainWindow::clear_black (bool)
 		bool_changer bc (m_inhibit_updates, true);
 		entry.tweaks.blacklevel = 0;
 		ui->blackSlider->setValue (0);
+	}
+	send_tweaks_to_db (entry);
+	enqueue_render (m_idx, true);
+}
+
+void MainWindow::clear_brightness (bool)
+{
+	if (m_idx == -1)
+		return;
+
+	auto &entry = m_model.vec[m_idx];
+	if (entry.images.get () == nullptr || entry.images->on_disk.isNull ())
+		return;
+	if (entry.tweaks.brightness == 0)
+		return;
+	{
+		bool_changer bc (m_inhibit_updates, true);
+		entry.tweaks.brightness = 0;
+		ui->brightSlider->setValue (0);
 	}
 	send_tweaks_to_db (entry);
 	enqueue_render (m_idx, true);
@@ -1082,7 +1120,9 @@ MainWindow::MainWindow (const QStringList &files)
 	connect (ui->blackClearButton, &QPushButton::clicked, this, &MainWindow::clear_black);
 	connect (ui->gammaClearButton, &QPushButton::clicked, this, &MainWindow::clear_gamma);
 	connect (ui->satClearButton, &QPushButton::clicked, this, &MainWindow::clear_sat);
+	connect (ui->brightClearButton, &QPushButton::clicked, this, &MainWindow::clear_brightness);
 	connect (ui->blackAutoButton, &QPushButton::clicked, this, &MainWindow::do_autoblack);
+	connect (ui->brightSlider, &QSlider::valueChanged, [this] (int) { update_adjustments (); });
 	connect (ui->blackSlider, &QSlider::valueChanged, [this] (int) { update_adjustments (); });
 	connect (ui->gammaSlider, &QSlider::valueChanged, [this] (int) { update_adjustments (); });
 	connect (ui->satSlider, &QSlider::valueChanged, [this] (int) { update_adjustments (); });
