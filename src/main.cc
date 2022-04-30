@@ -28,6 +28,7 @@
 #include <QCryptographicHash>
 #include <QDebug>
 #include <QRegularExpression>
+#include <QScrollBar>
 
 #include "colors.h"
 #include "imgentry.h"
@@ -174,11 +175,8 @@ void MainWindow::image_wheel_event (QWheelEvent *e)
 #endif
 }
 
-void MainWindow::image_mouse_event (QMouseEvent *e)
+void MainWindow::pick_wb (QMouseEvent *e)
 {
-	if (!ui->wbPickButton->isChecked () || m_img == nullptr)
-		return;
-
 	auto pos = e->pos ();
 	auto scene_pos = ui->imageView->mapToScene (pos);
 	int px = scene_pos.x ();
@@ -198,6 +196,37 @@ void MainWindow::image_mouse_event (QMouseEvent *e)
 		update_wbcol_button (entry.tweaks.white);
 		update_adjustments ();
 	}
+}
+
+void MainWindow::image_mouse_event (QMouseEvent *e)
+{
+	if (m_img == nullptr)
+		return;
+
+	if (ui->wbPickButton->isChecked ())
+		return pick_wb (e);
+
+	if (e->type () == QEvent::MouseButtonRelease) {
+		m_mouse_moving = false;
+		return;
+	}
+	if (e->type () == QEvent::MouseMove && m_mouse_moving) {
+		int xoff = e->x () - m_mouse_xbase;
+		int yoff = e->y () - m_mouse_ybase;
+		m_mouse_xbase = e->x ();
+		m_mouse_ybase = e->y ();
+		QScrollBar *hsb = ui->imageView->horizontalScrollBar ();
+		QScrollBar *vsb = ui->imageView->verticalScrollBar ();
+		hsb->setValue (hsb->value () - xoff);
+		vsb->setValue (vsb->value () - yoff);
+		return;
+	}
+	if (e->type () != QEvent::MouseButtonPress)
+		return;
+
+	m_mouse_moving = true;
+	m_mouse_xbase = e->x ();
+	m_mouse_ybase = e->y ();
 }
 
 void MainWindow::slot_save_as (bool)

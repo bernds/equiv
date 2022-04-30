@@ -123,13 +123,9 @@ class MainWindow: public QMainWindow
 
 	bool m_inhibit_updates = false;
 
-#if 0
 	bool m_mouse_moving = false;
 	int m_mouse_xbase = 0;
 	int m_mouse_ybase = 0;
-	int m_mouse_xoff = 0;
-	int m_mouse_yoff = 0;
-#endif
 
 	void start_threads ();
 	void restore_geometry ();
@@ -161,6 +157,7 @@ class MainWindow: public QMainWindow
 	void slot_render_complete (int idx);
 	void slot_save_as (bool);
 
+	void pick_wb (QMouseEvent *);
 	void image_mouse_event (QMouseEvent *);
 	void image_wheel_event (QWheelEvent *);
 
