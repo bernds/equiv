@@ -59,6 +59,7 @@ QString img_tweaks::to_string () const
 		str += "s:" + QString::number (sat) + ";";
 	if (brightness != 0)
 		str += "br:" + QString::number (brightness) + ";";
+	str += unknown_tags;
 	return str;
 }
 
@@ -78,6 +79,7 @@ bool img_tweaks::from_string (QString s)
 		white.setBlue (result1.captured (5).toInt ());
 		sat = result1.captured (6).toInt ();
 		brightness = result1.captured (7).toInt ();
+		unknown_tags = QString ();
 		return true;
 	}
 	auto result2 = re2.match (s);
@@ -88,6 +90,7 @@ bool img_tweaks::from_string (QString s)
 		white.setGreen (result2.captured (4).toInt ());
 		white.setBlue (result2.captured (5).toInt ());
 		sat = result2.captured (6).toInt ();
+		unknown_tags = QString ();
 		return true;
 	}
 	auto result3 = re3.match (s);
@@ -98,6 +101,7 @@ bool img_tweaks::from_string (QString s)
 		white.setGreen (result3.captured (4).toInt ());
 		white.setBlue (result3.captured (5).toInt ());
 		sat = 0;
+		unknown_tags = QString ();
 		return true;
 	}
 
@@ -124,6 +128,16 @@ bool img_tweaks::from_string (QString s)
 		white.setGreen (result_wb.captured (2).toInt ());
 		white.setBlue (result_wb.captured (3).toInt ());
 	}
+	s.replace (re_b, "");
+	s.replace (re_wb, "");
+	s.replace (re_sat, "");
+	s.replace (re_gamma, "");
+	s.replace (re_brite, "");
+	unknown_tags = s;
+#if 0
+	if (!s.isEmpty ())
+		qDebug () << "unknown tags: " << s;
+#endif
 	return false;
 }
 

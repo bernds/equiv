@@ -33,6 +33,8 @@ struct img_tweaks
 	int gamma = 0;
 	int sat = 0;
 
+	QString unknown_tags;
+
 	QString to_string () const;
 	bool from_string (QString s);
 };
