@@ -26,6 +26,10 @@ At the moment, this program is a few days old and therefore probably still
 somewhat rough. It's good enough for me to replace the tools I was
 previously using.
 
+The database format is somewhat in flux in this early stage, but the
+program should be backward compatible with its earliest versions.  Just
+loading images again with a new version will convert the format.
+
 ## Usage
 
 Pass the name of an image or directory on the command line.
@@ -35,6 +39,8 @@ Equiv is mostly controlled through keyboard shortcuts.
 - 'f' and 't' to show/hide the side panes.
 - F5 to start a randomized slide show.
 - 'z' to toggle scale mode.
+- When the picture is larger than the window, it can be clicked and
+  dragged (unless the white balance picker is enabled).
 - Ctrl-'c' and Ctrl-'v' to copy and paste image tweaks, where the copy
   always includes the full set, and the information to be pasted is
   controllable by check boxes in the tuning pane.
