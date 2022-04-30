@@ -545,7 +545,7 @@ void MainWindow::rescale_current ()
 	QSize wanted_sz = img_sz;
 	QSize sz = ui->imageView->viewport ()->size ();
 	wanted_sz.scale (sz, Qt::KeepAspectRatio);
-	m_img_scale = wanted_sz.width () == 0 ? 1 : (double)img_sz.width () / wanted_sz.width ();
+	m_img_scale = !do_scale ? 1 : wanted_sz.width () == 0 ? 1 : (double)img_sz.width () / wanted_sz.width ();
 
 	bool preferred_good = false;
 	if (!preferred.isNull ()) {
