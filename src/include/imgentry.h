@@ -34,7 +34,7 @@ struct img_tweaks
 	int sat = 0;
 
 	QString to_string () const;
-	void from_string (QString s);
+	bool from_string (QString s);
 };
 
 struct dir_entry

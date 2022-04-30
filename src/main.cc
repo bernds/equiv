@@ -47,16 +47,22 @@ img::~img ()
 
 QString img_tweaks::to_string () const
 {
-	return (QString::number (blacklevel)
-		+ "," + QString::number (gamma)
-		+ "," + QString::number (white.red ())
-		+ "," + QString::number (white.green ())
-		+ "," + QString::number (white.blue ())
-		+ "," + QString::number (sat)
-		+ "," + QString::number (brightness));
+	QString str;
+	if (blacklevel != 0)
+		str += "bk:" + QString::number (blacklevel) + ";";
+	if (gamma != 0)
+		str += "g:" + QString::number (gamma) + ";";
+	if (white != Qt::white)
+		str += "wb:" + QString::number (white.red ()) + "," + QString::number (white.green ())+ "," + QString::number (white.blue ()) + ";";
+	if (sat != 0)
+		str += "s:" + QString::number (sat) + ";";
+	if (brightness != 0)
+		str += "br:" + QString::number (brightness) + ";";
+	return str;
 }
 
-void img_tweaks::from_string (QString s)
+// Return true for obsolete forms that we should rewrite.
+bool img_tweaks::from_string (QString s)
 {
 	static QRegularExpression re1 ("(\\d+),(-?\\d+),(\\d+),(\\d+),(\\d+),(-?\\d+),(-?\\d+)");
 	static QRegularExpression re2 ("(\\d+),(-?\\d+),(\\d+),(\\d+),(\\d+),(-?\\d+)");
@@ -71,7 +77,7 @@ void img_tweaks::from_string (QString s)
 		white.setBlue (result1.captured (5).toInt ());
 		sat = result1.captured (6).toInt ();
 		brightness = result1.captured (7).toInt ();
-		return;
+		return true;
 	}
 	auto result2 = re2.match (s);
 	if (result2.hasMatch ()) {
@@ -81,7 +87,7 @@ void img_tweaks::from_string (QString s)
 		white.setGreen (result2.captured (4).toInt ());
 		white.setBlue (result2.captured (5).toInt ());
 		sat = result2.captured (6).toInt ();
-		return;
+		return true;
 	}
 	auto result3 = re3.match (s);
 	if (result3.hasMatch ()) {
@@ -91,8 +97,33 @@ void img_tweaks::from_string (QString s)
 		white.setGreen (result3.captured (4).toInt ());
 		white.setBlue (result3.captured (5).toInt ());
 		sat = 0;
-		return;
+		return true;
 	}
+
+	static QRegularExpression re_b ("bk:(\\d+);");
+	static QRegularExpression re_wb ("wb:(\\d+),(\\d+),(\\d+);");
+	static QRegularExpression re_sat ("s:(-?\\d+);");
+	static QRegularExpression re_gamma ("g:(-?\\d+);");
+	static QRegularExpression re_brite ("br:(-?\\d+);");
+	auto result_b = re_b.match (s);
+	auto result_wb = re_wb.match (s);
+	auto result_sat = re_sat.match (s);
+	auto result_gamma = re_gamma.match (s);
+	auto result_brite = re_brite.match (s);
+	if (result_b.hasMatch ())
+		blacklevel = result_b.captured (1).toInt ();
+	if (result_sat.hasMatch ())
+		sat = result_sat.captured (1).toInt ();
+	if (result_gamma.hasMatch ())
+		gamma = result_gamma.captured (1).toInt ();
+	if (result_brite.hasMatch ())
+		brightness = result_brite.captured (1).toInt ();
+	if (result_wb.hasMatch ()) {
+		white.setRed (result_wb.captured (1).toInt ());
+		white.setGreen (result_wb.captured (2).toInt ());
+		white.setBlue (result_wb.captured (3).toInt ());
+	}
+	return false;
 }
 
 void MainWindow::start_threads ()
@@ -375,7 +406,8 @@ void MainWindow::load_adjustments (dir_entry &e)
 	// qDebug () << qstr;
 	if (q.exec (qstr) && q.next ()) {
 		// qDebug () << "good " << q.value (0);
-		e.tweaks.from_string (q.value (0).toString ());
+		if (e.tweaks.from_string (q.value (0).toString ()))
+			send_tweaks_to_db (e);
 	}
 }
 
@@ -754,9 +786,11 @@ void MainWindow::sync_to_db ()
 		return;
 	m_db.transaction ();
 
+	// qDebug () << "transaction:";
 	QSqlQuery q (m_db);
 	while (!m_db_queue.isEmpty ()) {
 		QString s = m_db_queue.takeFirst ();
+		// qDebug () << "  " + s;
 		q.exec (s);
 	}
 	m_db.commit ();
@@ -766,7 +800,11 @@ void MainWindow::send_tweaks_to_db (const dir_entry &entry)
 {
 	QString str = entry.tweaks.to_string ();
 	QSqlQuery q (m_db);
-	QString qstr = QString ("replace into img_tweaks(md5, tweaks) values(\'%1\', \'%2\')").arg (entry.hash, str);
+	QString qstr;
+	if (str.isNull ())
+		qstr = QString ("delete from img_tweaks where md5 = '%1'").arg (entry.hash);
+	else
+		qstr = QString ("replace into img_tweaks(md5, tweaks) values('%1', '%2')").arg (entry.hash, str);
 	if (m_db_queue.isEmpty ())
 		m_db_timer.start ();
 	m_db_queue << qstr;
