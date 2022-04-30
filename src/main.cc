@@ -190,8 +190,10 @@ void MainWindow::image_mouse_event (QMouseEvent *e)
 		QImage img = entry.images->on_disk.toImage ();
 		QRgb v = img.pixel (px * m_img_scale, py * m_img_scale);
 		v &= 0xFFFFFF;
-		QColor corig (v);
-		QColor clinear (255 * srgb_to_linear (corig.red ()), 255 * srgb_to_linear (corig.green ()), 255 * srgb_to_linear (corig.blue ()));
+		QColor clinear1 = srgb_to_linear (QColor (v));
+		int cmax = std::max ({ clinear1.red (), clinear1.green (), clinear1.blue () });
+		double factor = 255.0 / cmax;
+		QColor clinear = QColor (clinear1.red () * factor, clinear1.green () * factor, clinear1.blue () * factor);
 		entry.tweaks.white = clinear;
 		update_wbcol_button (entry.tweaks.white);
 		update_adjustments ();
