@@ -1284,6 +1284,8 @@ int main (int argc, char **argv)
 	if (db.open ()) {
 		// printf ("db open success\n");
 		QSqlQuery create ("create table if not exists img_tweaks (md5 string primary key, tweaks string)", db);
+		QSqlQuery sync (db);
+		sync.exec ("pragma synchronous=off");
 	}
 	QSettings settings;
 
