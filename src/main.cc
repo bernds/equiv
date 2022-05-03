@@ -707,6 +707,11 @@ bool MainWindow::switch_to (int idx)
 	update_tweaks_ui (entry);
 	setWindowTitle (QString (PACKAGE) + ": " + n);
 	rescale_current ();
+
+	QScrollBar *hsb = ui->imageView->horizontalScrollBar ();
+	QScrollBar *vsb = ui->imageView->verticalScrollBar ();
+	hsb->setValue (0);
+	vsb->setValue (0);
 	return true;
 }
 
