@@ -68,7 +68,7 @@ public:
 	std::atomic<bool> abort_render { false };
 
 	void do_render ();
-	void slot_render (int idx, img *, img_tweaks *, int w, int h);
+	void slot_render (int idx, img *, img_tweaks *, int w, int h, bool);
 signals:
 	void signal_render_complete (int idx);
 };
@@ -154,6 +154,8 @@ class MainWindow: public QMainWindow
 	void clear_brightness (bool = false);
 	void clear_sat (bool = false);
 
+	void rotate (int adjust);
+
 	void slot_render_complete (int idx);
 	void slot_save_as (bool);
 
@@ -200,7 +202,7 @@ public:
 	~MainWindow ();
 
 signals:
-	void signal_render (int idx, img *, img_tweaks *, int w, int h);
+	void signal_render (int idx, img *, img_tweaks *, int w, int h, bool);
 
 };
 

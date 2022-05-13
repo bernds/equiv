@@ -79,8 +79,16 @@
     </property>
     <addaction name="action_Preferences"/>
    </widget>
+   <widget class="QMenu" name="menuTransform">
+    <property name="title">
+     <string>Transform</string>
+    </property>
+    <addaction name="action_RCW"/>
+    <addaction name="action_RCCW"/>
+   </widget>
    <addaction name="menu_File"/>
    <addaction name="menu_View"/>
+   <addaction name="menuTransform"/>
    <addaction name="menuSettings"/>
    <addaction name="menu_Help"/>
   </widget>
@@ -798,6 +806,22 @@
   <action name="action_Preferences">
    <property name="text">
     <string>&amp;Preferences</string>
+   </property>
+  </action>
+  <action name="action_RCW">
+   <property name="text">
+    <string>Rotate clockwise</string>
+   </property>
+   <property name="shortcut">
+    <string>R</string>
+   </property>
+  </action>
+  <action name="action_RCCW">
+   <property name="text">
+    <string>Rotate counter-clockwise</string>
+   </property>
+   <property name="shortcut">
+    <string>Shift+R</string>
    </property>
   </action>
  </widget>

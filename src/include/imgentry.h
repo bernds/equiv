@@ -19,6 +19,11 @@ struct img
 	double border_avgh = 0;
 	double border_avgv = 0;
 
+	/* Information about what was applied to the corrected/scaled images.
+	   Used to decide if they are up-to-date or need to be rerendered.  */
+	int render_rot = 0;
+	bool render_tweaks = false;
+
 	~img ();
 };
 
@@ -32,6 +37,7 @@ struct img_tweaks
 	   gamma curve by the rendering code.  */
 	int gamma = 0;
 	int sat = 0;
+	int rot = 0;
 
 	QString unknown_tags;
 

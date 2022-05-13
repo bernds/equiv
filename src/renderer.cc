@@ -51,9 +51,9 @@ void Renderer::do_render ()
 {
 }
 
-void Renderer::slot_render (int idx, img *e, img_tweaks *tw, int w, int h)
+void Renderer::slot_render (int idx, img *e, img_tweaks *tw, int w, int h, bool tweaked)
 {
-	// printf ("start render %d\n", idx);
+	// printf ("start render %d: %d x %d rot %d (was %d)\n", idx, w, h, tw->rot, e->render_rot);
 	mutex.lock ();
 	QPixmap pm = e->on_disk;
 	QImage linear = e->linear;
@@ -112,7 +112,7 @@ void Renderer::slot_render (int idx, img *e, img_tweaks *tw, int w, int h)
 		double glimit = 65535. / (e->l_maxg * fg);
 		double blimit = 65535. / (e->l_maxb * fb);
 		double limit = std::min ({ 1.0, rlimit, glimit, blimit });
-		if (corrected.isNull ()) {
+		if (corrected.isNull () || e->render_tweaks != tweaked || e->render_rot != tw->rot) {
 			QImage tmp = linear;
 			double gammaval = 1 + tw->gamma / 100.1;
 			double satval = -tw->sat / 100.;
@@ -168,6 +168,11 @@ void Renderer::slot_render (int idx, img *e, img_tweaks *tw, int w, int h)
 			}
 #endif
 			tmp.convertToColorSpace (QColorSpace::SRgb);
+			if (tw->rot != 0) {
+				QTransform t;
+				t.rotate (tw->rot);
+				tmp = tmp.transformed (t);
+			}
 			corrected = QPixmap::fromImage (tmp.convertToFormat (QImage::Format_ARGB32));
 		}
 		QPixmap scaled = corrected.scaled (w, h, Qt::KeepAspectRatio, Qt::SmoothTransformation);
@@ -175,6 +180,8 @@ void Renderer::slot_render (int idx, img *e, img_tweaks *tw, int w, int h)
 		e->linear = linear;
 		e->corrected = corrected;
 		e->scaled = scaled;
+		e->render_rot = tw->rot;
+		e->render_tweaks = tweaked;
 	}
 	completion_sem.release ();
 	// printf ("end render %d\n", idx);

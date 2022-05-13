@@ -59,6 +59,8 @@ QString img_tweaks::to_string () const
 		str += "s:" + QString::number (sat) + ";";
 	if (brightness != 0)
 		str += "br:" + QString::number (brightness) + ";";
+	if (rot != 0)
+		str += "rot:" + QString::number (rot) + ";";
 	str += unknown_tags;
 	return str;
 }
@@ -110,11 +112,13 @@ bool img_tweaks::from_string (QString s)
 	static QRegularExpression re_sat ("s:(-?\\d+);");
 	static QRegularExpression re_gamma ("g:(-?\\d+);");
 	static QRegularExpression re_brite ("br:(-?\\d+);");
+	static QRegularExpression re_rot ("rot:(\\d+);");
 	auto result_b = re_b.match (s);
 	auto result_wb = re_wb.match (s);
 	auto result_sat = re_sat.match (s);
 	auto result_gamma = re_gamma.match (s);
 	auto result_brite = re_brite.match (s);
+	auto result_rot = re_rot.match (s);
 	if (result_b.hasMatch ())
 		blacklevel = result_b.captured (1).toInt ();
 	if (result_sat.hasMatch ())
@@ -123,6 +127,8 @@ bool img_tweaks::from_string (QString s)
 		gamma = result_gamma.captured (1).toInt ();
 	if (result_brite.hasMatch ())
 		brightness = result_brite.captured (1).toInt ();
+	if (result_rot.hasMatch ())
+		rot = result_rot.captured (1).toInt ();
 	if (result_wb.hasMatch ()) {
 		white.setRed (result_wb.captured (1).toInt ());
 		white.setGreen (result_wb.captured (2).toInt ());
@@ -133,6 +139,7 @@ bool img_tweaks::from_string (QString s)
 	s.replace (re_sat, "");
 	s.replace (re_gamma, "");
 	s.replace (re_brite, "");
+	s.replace (re_rot, "");
 	unknown_tags = s;
 #if 0
 	if (!s.isEmpty ())
@@ -416,8 +423,10 @@ void MainWindow::restart_render ()
 		r->completion_sem.acquire ();
 		// printf ("queue render %d\n", q.idx);
 		m_render_queued = true;
-		img_tweaks *tw = ui->tweaksGroupBox->isChecked () ? &entry.tweaks : &m_no_tweaks;
-		emit signal_render (q.idx, entry.images.get (), tw, sz.width (), sz.height ());
+		bool tweaked = ui->tweaksGroupBox->isChecked ();
+		img_tweaks *tw = tweaked ? &entry.tweaks : &m_no_tweaks;
+		emit signal_render (q.idx, entry.images.get (), tw, sz.width (), sz.height (),
+				    tweaked);
 		break;
 	}
 }
@@ -588,18 +597,26 @@ void MainWindow::rescale_current ()
 
 	QSize img_sz = img->on_disk.size ();
 	QSize wanted_sz = img_sz;
+	if (entry.tweaks.rot == 90 || entry.tweaks.rot == 270) {
+		img_sz.transpose ();
+		wanted_sz.transpose ();
+	}
 	QSize sz = ui->imageView->viewport ()->size ();
 	wanted_sz.scale (sz, Qt::KeepAspectRatio);
 	m_img_scale = !do_scale ? 1 : wanted_sz.width () == 0 ? 1 : (double)img_sz.width () / wanted_sz.width ();
 
 	bool preferred_good = false;
 	if (!preferred.isNull ()) {
-		// printf ("found preferred ");
 		QSize existing_sz = preferred.size ();
-		if (!do_scale || wanted_sz == existing_sz) {
+		// printf ("found preferred %d x %d", existing_sz.width (), existing_sz.height ());
+		if (entry.tweaks.rot == entry.images->render_rot
+		    && ui->tweaksGroupBox->isChecked () == entry.images->render_tweaks
+		    && (!do_scale || wanted_sz == existing_sz))
+		{
 			preferred_good = true;
 			// printf ("good picture, no work needed ");
-		} else {
+		}
+		if (!preferred_good) {
 			// printf ("enqueue again ");
 			enqueue_render (m_idx);
 		}
@@ -608,8 +625,13 @@ void MainWindow::rescale_current ()
 	QPixmap final_img = preferred;
 	if (!preferred_good) {
 		final_img = img->on_disk;
+		if (entry.tweaks.rot != 0) {
+			QTransform t;
+			t.rotate (entry.tweaks.rot);
+			final_img = final_img.transformed (t);
+		}
 		if (do_scale)
-			final_img = img->on_disk.scaled (wanted_sz, Qt::KeepAspectRatio, Qt::FastTransformation);
+			final_img = final_img.scaled (wanted_sz, Qt::KeepAspectRatio, Qt::FastTransformation);
 	}
 	if (m_img && m_img->pixmap ().toImage () == final_img.toImage ()) {
 		// printf ("image good already ");
@@ -638,6 +660,26 @@ void MainWindow::scale_changed (int state)
 	Qt::ScrollBarPolicy pol = state == Qt::Unchecked ? Qt::ScrollBarAsNeeded : Qt::ScrollBarAlwaysOff;
 	ui->imageView->setVerticalScrollBarPolicy (pol);
 	ui->imageView->setHorizontalScrollBarPolicy (pol);
+	rescale_current ();
+}
+
+void MainWindow::rotate (int r)
+{
+	if (m_idx == -1)
+		return;
+
+	auto &entry = m_model.vec[m_idx];
+	img *img = entry.images.get ();
+	if (img == nullptr || img->on_disk.isNull ())
+		return;
+
+	entry.tweaks.rot += r;
+	if (entry.tweaks.rot < 0)
+		entry.tweaks.rot += 360;
+	else if (entry.tweaks.rot >= 360)
+		entry.tweaks.rot -= 360;
+
+	send_tweaks_to_db (entry);
 	rescale_current ();
 }
 
@@ -1225,7 +1267,10 @@ MainWindow::MainWindow (const QStringList &files)
 	connect (ui->action_Quit, &QAction::triggered, this, &MainWindow::close);
 
 	connect (ui->action_About, &QAction::triggered, this, &MainWindow::help_about);
-	connect (ui->action_AboutQt, &QAction::triggered, [=] (bool) { QMessageBox::aboutQt (this); });
+	connect (ui->action_AboutQt, &QAction::triggered, [this] (bool) { QMessageBox::aboutQt (this); });
+
+	connect (ui->action_RCW, &QAction::triggered, [this] (bool) { rotate (90); });
+	connect (ui->action_RCCW, &QAction::triggered, [this] (bool) { rotate (-90); });
 
 	connect (ui->action_Scale, &QAction::triggered, ui->scaleCheckBox, &QCheckBox::toggle);
 	connect (ui->scaleCheckBox, &QCheckBox::stateChanged, this, &MainWindow::scale_changed);
@@ -1242,20 +1287,8 @@ MainWindow::MainWindow (const QStringList &files)
 	addActions ({ fa, ta });
 	addActions ({ ui->action_ShowMenubar });
 	addActions ({ ui->action_Scale });
+	addActions ({ ui->action_RCW, ui->action_RCCW });
 	addActions ({ ui->action_Next, ui->action_Prev, ui->action_Slideshow, ui->action_Stop });
-
-#if 0
-	void (QComboBox::*cic) (int) = &QComboBox::currentIndexChanged;
-	void (QSpinBox::*changed) (int) = &QSpinBox::valueChanged;
-	void (QDoubleSpinBox::*dchanged) (double) = &QDoubleSpinBox::valueChanged;
-
-	addActions ({ ui->action_Mandelbrot, ui->action_Julia, ui->action_MJpreview });
-	addActions ({ ui->action_IncPrec, ui->action_DecPrec });
-	addActions ({ ui->action_FD2, ui->action_FD3, ui->action_FD4, ui->action_FD5 });
-	addActions ({ ui->action_FD6, ui->action_FD7  });
-	addActions ({ ui->action_AngleSmooth  });
-	addActions ({ ui->action_GradEditor });
-#endif
 }
 
 MainWindow::~MainWindow ()
