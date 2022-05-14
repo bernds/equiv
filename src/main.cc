@@ -952,7 +952,7 @@ void MainWindow::do_copy (bool)
 	m_copied_tweaks = entry.tweaks;
 }
 
-void MainWindow::do_paste (bool)
+void MainWindow::do_paste (const img_tweaks &source)
 {
 	if (m_idx == -1)
 		return;
@@ -962,24 +962,24 @@ void MainWindow::do_paste (bool)
 		return;
 	bool changed = false;
 	if (ui->pasteBriteCheckBox->isChecked ()) {
-		changed |= entry.tweaks.brightness != m_copied_tweaks.brightness;
-		entry.tweaks.brightness = m_copied_tweaks.brightness;
+		changed |= entry.tweaks.brightness != source.brightness;
+		entry.tweaks.brightness = source.brightness;
 	}
 	if (ui->pasteBCheckBox->isChecked ()) {
-		changed |= entry.tweaks.blacklevel != m_copied_tweaks.blacklevel;
-		entry.tweaks.blacklevel = m_copied_tweaks.blacklevel;
+		changed |= entry.tweaks.blacklevel != source.blacklevel;
+		entry.tweaks.blacklevel = source.blacklevel;
 	}
 	if (ui->pasteGCheckBox->isChecked ()) {
-		changed |= entry.tweaks.gamma != m_copied_tweaks.gamma;
-		entry.tweaks.gamma = m_copied_tweaks.gamma;
+		changed |= entry.tweaks.gamma != source.gamma;
+		entry.tweaks.gamma = source.gamma;
 	}
 	if (ui->pasteSCheckBox->isChecked ()) {
-		changed |= entry.tweaks.sat != m_copied_tweaks.sat;
-		entry.tweaks.sat = m_copied_tweaks.sat;
+		changed |= entry.tweaks.sat != source.sat;
+		entry.tweaks.sat = source.sat;
 	}
 	if (ui->pasteWBCheckBox->isChecked ()) {
-		changed |= entry.tweaks.white != m_copied_tweaks.white;
-		entry.tweaks.white = m_copied_tweaks.white;
+		changed |= entry.tweaks.white != source.white;
+		entry.tweaks.white = source.white;
 	}
 	update_tweaks_ui (entry);
 	if (changed) {
@@ -1258,10 +1258,11 @@ MainWindow::MainWindow (const QStringList &files)
 	connect (ui->satSlider, &QSlider::valueChanged, [this] (int) { update_adjustments (); });
 	connect (ui->tweaksGroupBox, &QGroupBox::toggled, [this] (bool) { update_adjustments (); });
 
-	ui->copyButton->setDefaultAction (ui->action_Copy);
-	ui->pasteButton->setDefaultAction (ui->action_Paste);
 	connect (ui->action_Copy, &QAction::triggered, this, &MainWindow::do_copy);
-	connect (ui->action_Paste, &QAction::triggered, this, &MainWindow::do_paste);
+	connect (ui->copyButton, &QPushButton::clicked, this, &MainWindow::do_copy);
+	connect (ui->action_Paste, &QAction::triggered, [this] (bool) { do_paste (m_copied_tweaks); });
+	connect (ui->pasteButton, &QPushButton::clicked, [this] (bool) { do_paste (m_copied_tweaks); });
+	connect (ui->clearAllButton, &QPushButton::clicked, [this] (bool) { do_paste (m_no_tweaks); });
 
 	connect (ui->action_Preferences, &QAction::triggered, this, &MainWindow::prefs);
 	connect (ui->action_Quit, &QAction::triggered, this, &MainWindow::close);
@@ -1287,6 +1288,7 @@ MainWindow::MainWindow (const QStringList &files)
 	addActions ({ fa, ta });
 	addActions ({ ui->action_ShowMenubar });
 	addActions ({ ui->action_Scale });
+	addActions ({ ui->action_Copy, ui->action_Paste });
 	addActions ({ ui->action_RCW, ui->action_RCCW });
 	addActions ({ ui->action_Next, ui->action_Prev, ui->action_Slideshow, ui->action_Stop });
 }

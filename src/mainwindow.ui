@@ -476,7 +476,7 @@
             <number>0</number>
            </property>
            <item>
-            <widget class="QToolButton" name="copyButton">
+            <widget class="QPushButton" name="copyButton">
              <property name="text">
               <string>Copy</string>
              </property>
@@ -486,9 +486,20 @@
             </widget>
            </item>
            <item>
-            <widget class="QToolButton" name="pasteButton">
+            <widget class="QPushButton" name="pasteButton">
              <property name="text">
               <string>Paste</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QToolButton" name="clearAllButton">
+             <property name="text">
+              <string>Clear</string>
+             </property>
+             <property name="icon">
+              <iconset resource="equiv.qrc">
+               <normaloff>:/newPrefix/icons/Edit-undo.svg</normaloff>:/newPrefix/icons/Edit-undo.svg</iconset>
              </property>
             </widget>
            </item>

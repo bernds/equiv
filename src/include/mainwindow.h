@@ -145,7 +145,7 @@ class MainWindow: public QMainWindow
 	void update_adjustments ();
 	void do_autoblack (bool = false);
 	void do_copy (bool = false);
-	void do_paste (bool = false);
+	void do_paste (const img_tweaks &);
 
 	void choose_wb_color (bool = false);
 	void clear_wb (bool = false);
