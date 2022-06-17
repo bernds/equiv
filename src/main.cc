@@ -702,6 +702,17 @@ void MainWindow::update_tweaks_ui (const dir_entry &entry)
 	update_wbcol_button (entry.tweaks.white);
 }
 
+void MainWindow::add_to_lru (dir_entry &entry)
+{
+	if (entry.lru_pprev != nullptr)
+		return;
+	if (m_lru)
+		m_lru->lru_pprev = &entry.lru_next;
+	entry.lru_next = m_lru;
+	entry.lru_pprev = &m_lru;
+	m_lru = &entry;
+}
+
 bool MainWindow::switch_to (int idx)
 {
 	if (m_idx == idx)
@@ -711,11 +722,7 @@ bool MainWindow::switch_to (int idx)
 	if (m_idx != -1) {
 		auto &old_entry = m_model.vec[m_idx];
 		assert (old_entry.lru_pprev == nullptr);
-		if (m_lru)
-			m_lru->lru_pprev = &old_entry.lru_next;
-		old_entry.lru_next = m_lru;
-		old_entry.lru_pprev = &m_lru;
-		m_lru = &old_entry;
+		add_to_lru (old_entry);
 	}
 
 	{
@@ -803,6 +810,7 @@ void MainWindow::next_image (bool)
 	}
 	if (next + 1 < m_model.vec.size ()) {
 		next++;
+		add_to_lru (m_model.vec[next]);
 		enqueue_render (next, false, true);
 	}
 }
@@ -824,6 +832,7 @@ void MainWindow::prev_image (bool)
 		prev--;
 		if (m_model.vec[prev].isdir)
 			return;
+		add_to_lru (m_model.vec[prev]);
 		enqueue_render (prev, false, true);
 	}
 }

@@ -130,6 +130,7 @@ class MainWindow: public QMainWindow
 	void start_threads ();
 	void restore_geometry ();
 
+	void add_to_lru (dir_entry &);
 	void prune_lru (int leave = 5);
 
 	void slide_elapsed ();
