@@ -340,16 +340,15 @@ void MainWindow::scan_cwd ()
 	auto dirlist = m_cwd.entryInfoList (QDir::Dirs | QDir::NoDot, QDir::Name);
 	auto filelist = m_cwd.entryInfoList (QDir::Files, QDir::Name);
 	for (auto &dn: dirlist)
-		m_model.vec.emplace_back (dn.fileName (), true);
+		m_model.vec.emplace_back (m_cwd, dn.fileName (), true);
 	m_first_file_idx = m_model.vec.size ();
 	for (auto &fn: filelist)
-		m_model.vec.emplace_back (fn.fileName (), false);
+		m_model.vec.emplace_back (m_cwd, fn.fileName (), false);
 }
 
 /* Used in only one place: to scan arguments given on the command line.  */
 void MainWindow::scan (const QString &filename)
 {
-	QDir d (filename);
 	bool opened = false;
 	if (!filename.isEmpty ()) {
 		QFileInfo f (filename);
@@ -357,7 +356,7 @@ void MainWindow::scan (const QString &filename)
 		if (f.exists () && !f.isDir ()) {
 			opened = true;
 			m_cwd = f.dir ();
-			m_model.vec.emplace_back (f.fileName (), false);
+			m_model.vec.emplace_back (f.dir (), f.fileName (), false);
 			m_first_file_idx = 0;
 		}
 	}
@@ -486,7 +485,7 @@ QString MainWindow::load (int idx, bool do_queue)
 	auto &entry = m_model.vec[idx];
 	if (!entry.images)
 		entry.images = std::make_unique<img> ();
-	QString path = m_cwd.absoluteFilePath (entry.name);
+	QString path = entry.path ();
 	QFileInfo info (path);
 	if (entry.images->on_disk.isNull () || entry.images->mtime != info.lastModified ())
 	{

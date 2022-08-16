@@ -8,7 +8,6 @@
 #include <QImage>
 #include <QTimer>
 #include <QDialog>
-#include <QDir>
 #include <QSettings>
 #include <QSqlDatabase>
 

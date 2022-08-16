@@ -1,6 +1,7 @@
 #ifndef IMGENTRY_H
 #define IMGENTRY_H 1
 
+#include <QDir>
 #include <QPixmap>
 #include <QDateTime>
 #include <QAbstractItemModel>
@@ -51,6 +52,7 @@ struct img_tweaks
 
 struct dir_entry
 {
+	QDir dir;
 	QString name;
 	QString hash;
 	std::unique_ptr<img> images;
@@ -69,8 +71,12 @@ struct dir_entry
 		lru_next = nullptr;
 		lru_pprev = nullptr;
 	}
-	dir_entry(QString n, bool dir) : name (std::move (n)), isdir (dir)
+	dir_entry(QDir d, QString n, bool dir) : dir (std::move (d)), name (std::move (n)), isdir (dir)
 	{
+	}
+	QString path ()
+	{
+		return dir.absoluteFilePath (name);
 	}
 };
 
