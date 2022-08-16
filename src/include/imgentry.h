@@ -23,6 +23,7 @@ struct img
 	   Used to decide if they are up-to-date or need to be rerendered.  */
 	int render_rot = 0;
 	bool render_tweaks = false;
+	int linear_cspace_idx = 0;
 
 	~img ();
 };
@@ -31,6 +32,9 @@ struct img_tweaks
 {
 	/* White balance.  */
 	QColor white = Qt::white;
+	/* An index into a combo box chosen to correspond to values of QColorSpace::NamedColorSpace.
+	   Using an int instead of the enum to be able to signal 0 as default.  */
+	int cspace_idx = 0;
 	int blacklevel = 0;
 	int brightness = 0;
 	/* A range of -100 to 100 given by the GUI, translated into a reasonable 

@@ -61,11 +61,15 @@ void Renderer::slot_render (int idx, img *e, img_tweaks *tw, int w, int h, bool 
 	mutex.unlock ();
 
 	if (!abort_render) {
-		if (linear.isNull ()) {
+		if (linear.isNull () || e->linear_cspace_idx != tw->cspace_idx) {
 			linear = pm.toImage ().convertToFormat (QImage::Format_RGBA64);
-			if (!linear.colorSpace ().isValid ())
+			if (tw->cspace_idx != 0)
+				linear.setColorSpace ((QColorSpace::NamedColorSpace)tw->cspace_idx);
+			else if (!linear.colorSpace ().isValid ())
 				linear.setColorSpace (QColorSpace::SRgb);
-			linear.convertToColorSpace (QColorSpace::SRgbLinear);
+			QColorSpace linear_cs = linear.colorSpace ();
+			linear_cs.setTransferFunction (QColorSpace::TransferFunction::Linear);
+			linear.convertToColorSpace (linear_cs);
 			auto bits1 = linear.bits ();
 			uint64_t *bits = (uint64_t *)bits1;
 			QSize sz = linear.size ();
@@ -181,6 +185,7 @@ void Renderer::slot_render (int idx, img *e, img_tweaks *tw, int w, int h, bool 
 		e->corrected = corrected;
 		e->scaled = scaled;
 		e->render_rot = tw->rot;
+		e->linear_cspace_idx = tw->cspace_idx;
 		e->render_tweaks = tweaked;
 	}
 	completion_sem.release ();

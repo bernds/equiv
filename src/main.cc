@@ -61,6 +61,8 @@ QString img_tweaks::to_string () const
 		str += "br:" + QString::number (brightness) + ";";
 	if (rot != 0)
 		str += "rot:" + QString::number (rot) + ";";
+	if (cspace_idx != 0)
+		str += "cs:" + QString::number (cspace_idx) + ";";
 	str += unknown_tags;
 	return str;
 }
@@ -113,16 +115,23 @@ bool img_tweaks::from_string (QString s)
 	static QRegularExpression re_gamma ("g:(-?\\d+);");
 	static QRegularExpression re_brite ("br:(-?\\d+);");
 	static QRegularExpression re_rot ("rot:(\\d+);");
+	static QRegularExpression re_cs ("cs:(\\d+);");
 	auto result_b = re_b.match (s);
 	auto result_wb = re_wb.match (s);
 	auto result_sat = re_sat.match (s);
 	auto result_gamma = re_gamma.match (s);
 	auto result_brite = re_brite.match (s);
 	auto result_rot = re_rot.match (s);
+	auto result_cs = re_cs.match (s);
 	if (result_b.hasMatch ())
 		blacklevel = result_b.captured (1).toInt ();
-	if (result_sat.hasMatch ())
+	if (result_sat.hasMatch ()
+	    /* Using a single letter "s:" was a poor choice, and then using "cs:" was also a
+	       poor choice.  */
+	    && !result_cs.hasMatch () || result_sat.capturedStart (1) != result_cs.capturedStart (1))
+	{
 		sat = result_sat.captured (1).toInt ();
+	}
 	if (result_gamma.hasMatch ())
 		gamma = result_gamma.captured (1).toInt ();
 	if (result_brite.hasMatch ())
@@ -134,12 +143,19 @@ bool img_tweaks::from_string (QString s)
 		white.setGreen (result_wb.captured (2).toInt ());
 		white.setBlue (result_wb.captured (3).toInt ());
 	}
+	if (result_cs.hasMatch ())
+		cspace_idx = result_cs.captured (1).toInt ();
+	if (result_cs.hasMatch () && result_sat.hasMatch ()
+	    && result_sat.capturedStart (1) != result_cs.capturedStart (1) && sat == cspace_idx) {
+		printf ("oops\n");
+	}
 	s.replace (re_b, "");
 	s.replace (re_wb, "");
 	s.replace (re_sat, "");
 	s.replace (re_gamma, "");
 	s.replace (re_brite, "");
 	s.replace (re_rot, "");
+	s.replace (re_cs, "");
 	unknown_tags = s;
 #if 0
 	if (!s.isEmpty ())
@@ -610,6 +626,7 @@ void MainWindow::rescale_current ()
 		QSize existing_sz = preferred.size ();
 		// printf ("found preferred %d x %d", existing_sz.width (), existing_sz.height ());
 		if (entry.tweaks.rot == entry.images->render_rot
+		    && entry.tweaks.cspace_idx == entry.images->linear_cspace_idx
 		    && ui->tweaksGroupBox->isChecked () == entry.images->render_tweaks
 		    && (!do_scale || wanted_sz == existing_sz))
 		{
@@ -699,6 +716,7 @@ void MainWindow::update_tweaks_ui (const dir_entry &entry)
 	ui->brightSlider->setValue (entry.tweaks.brightness);
 	ui->gammaSlider->setValue (entry.tweaks.gamma);
 	ui->satSlider->setValue (entry.tweaks.sat);
+	ui->cspaceComboBox->setCurrentIndex (entry.tweaks.cspace_idx);
 	update_wbcol_button (entry.tweaks.white);
 }
 
@@ -754,7 +772,7 @@ bool MainWindow::switch_to (int idx)
 		ui->sizeLabel->setText (QString::number (mib / 1024, 'f', 1) + " GiB");
 
 	update_tweaks_ui (entry);
-	setWindowTitle (QString (PACKAGE) + ": " + n);
+	setWindowTitle (QString (PACKAGE) + " (experiment): " + n);
 	rescale_current ();
 
 	QScrollBar *hsb = ui->imageView->horizontalScrollBar ();
@@ -924,6 +942,7 @@ void MainWindow::update_adjustments ()
 	entry.tweaks.blacklevel = ui->blackSlider->value ();
 	entry.tweaks.gamma = ui->gammaSlider->value ();
 	entry.tweaks.sat = ui->satSlider->value ();
+	entry.tweaks.cspace_idx = ui->cspaceComboBox->currentIndex ();
 
 	send_tweaks_to_db (entry);
 	enqueue_render (m_idx, true);
@@ -985,6 +1004,10 @@ void MainWindow::do_paste (const img_tweaks &source)
 	if (ui->pasteSCheckBox->isChecked ()) {
 		changed |= entry.tweaks.sat != source.sat;
 		entry.tweaks.sat = source.sat;
+	}
+	if (ui->pasteCSCheckBox->isChecked ()) {
+		changed |= entry.tweaks.cspace_idx != source.cspace_idx;
+		entry.tweaks.cspace_idx = source.cspace_idx;
 	}
 	if (ui->pasteWBCheckBox->isChecked ()) {
 		changed |= entry.tweaks.white != source.white;
@@ -1115,6 +1138,25 @@ void MainWindow::clear_sat (bool)
 		bool_changer bc (m_inhibit_updates, true);
 		entry.tweaks.sat = 0;
 		ui->satSlider->setValue (0);
+	}
+	send_tweaks_to_db (entry);
+	enqueue_render (m_idx, true);
+}
+
+void MainWindow::clear_cspace (bool)
+{
+	if (m_idx == -1)
+		return;
+
+	auto &entry = m_model.vec[m_idx];
+	if (entry.images.get () == nullptr || entry.images->on_disk.isNull ())
+		return;
+	if (entry.tweaks.cspace_idx == 0)
+		return;
+	{
+		bool_changer bc (m_inhibit_updates, true);
+		entry.tweaks.cspace_idx = 0;
+		ui->cspaceComboBox->setCurrentIndex (0);
 	}
 	send_tweaks_to_db (entry);
 	enqueue_render (m_idx, true);
@@ -1260,12 +1302,15 @@ MainWindow::MainWindow (const QStringList &files)
 	connect (ui->gammaClearButton, &QPushButton::clicked, this, &MainWindow::clear_gamma);
 	connect (ui->satClearButton, &QPushButton::clicked, this, &MainWindow::clear_sat);
 	connect (ui->brightClearButton, &QPushButton::clicked, this, &MainWindow::clear_brightness);
+	connect (ui->csClearButton, &QPushButton::clicked, this, &MainWindow::clear_cspace);
 	connect (ui->blackAutoButton, &QPushButton::clicked, this, &MainWindow::do_autoblack);
 	connect (ui->brightSlider, &QSlider::valueChanged, [this] (int) { update_adjustments (); });
 	connect (ui->blackSlider, &QSlider::valueChanged, [this] (int) { update_adjustments (); });
 	connect (ui->gammaSlider, &QSlider::valueChanged, [this] (int) { update_adjustments (); });
 	connect (ui->satSlider, &QSlider::valueChanged, [this] (int) { update_adjustments (); });
 	connect (ui->tweaksGroupBox, &QGroupBox::toggled, [this] (bool) { update_adjustments (); });
+	void (QComboBox::*cic) (int) = &QComboBox::currentIndexChanged;
+	connect (ui->cspaceComboBox, cic, [this] (int idx) { update_adjustments (); });
 
 	connect (ui->action_Copy, &QAction::triggered, this, &MainWindow::do_copy);
 	connect (ui->copyButton, &QPushButton::clicked, this, &MainWindow::do_copy);

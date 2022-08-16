@@ -154,6 +154,7 @@ class MainWindow: public QMainWindow
 	void clear_gamma (bool = false);
 	void clear_brightness (bool = false);
 	void clear_sat (bool = false);
+	void clear_cspace (bool = false);
 
 	void rotate (int adjust);
 
