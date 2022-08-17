@@ -101,6 +101,8 @@ class MainWindow: public QMainWindow
 	};
 	std::vector<imgq> m_queue;
 
+	bool m_individual_files = false;
+
 	QGraphicsScene m_canvas;
 	QGraphicsPixmapItem *m_img {};
 	double m_img_scale = 1;
@@ -159,7 +161,8 @@ class MainWindow: public QMainWindow
 
 	void slot_render_complete (int idx);
 	void slot_save_as (bool);
-	void slot_rescan (bool);
+	void slot_rescan (bool = false);
+	void slot_rename (bool);
 
 	void pick_wb (QMouseEvent *);
 	void image_mouse_event (QMouseEvent *);

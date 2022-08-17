@@ -71,6 +71,7 @@
     <property name="title">
      <string>&amp;File</string>
     </property>
+    <addaction name="action_Rename"/>
     <addaction name="action_Rescan"/>
     <addaction name="separator"/>
     <addaction name="action_Quit"/>
@@ -926,6 +927,17 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+R</string>
+   </property>
+  </action>
+  <action name="action_Rename">
+   <property name="text">
+    <string>Rename file</string>
+   </property>
+   <property name="toolTip">
+    <string>Rename file</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+N</string>
    </property>
   </action>
  </widget>

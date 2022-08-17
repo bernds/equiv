@@ -30,17 +30,16 @@
 #include <QRegularExpression>
 #include <QScrollBar>
 
+#include "equiv.h"
 #include "colors.h"
 #include "imgentry.h"
 #include "util-widgets.h"
 
 #include "prefsdlg.h"
+#include "renamedlg.h"
 
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
-
-#define PACKAGE "Equiv"
-#define DB_FILENAME "equiv.db"
 
 img::~img ()
 {
@@ -324,6 +323,7 @@ void MainWindow::discard_entries ()
 	bool_changer bc (m_inhibit_updates, true);
 
 	m_idx = -1;
+	ui->action_Rename->setEnabled (false);
 	m_next_slide = -1;
 	delete m_img;
 	m_img = nullptr;
@@ -757,6 +757,8 @@ bool MainWindow::switch_to (int idx)
 	}
 
 	m_idx = idx;
+	ui->action_Rename->setEnabled (idx != -1);
+
 	auto &entry = m_model.vec[m_idx];
 	entry.lru_remove ();
 	QString n = load (idx);
@@ -833,6 +835,20 @@ void MainWindow::slot_rescan (bool)
 	int idx = scan_cwd (cur);
 	if (idx != -1)
 		switch_to (idx);
+}
+
+void MainWindow::slot_rename (bool)
+{
+	QString cur;
+	if (m_idx == -1)
+		/* Shouldn't happen.  */
+		return;
+	auto &entry = m_model.vec[m_idx];
+	RenameDialog dlg (this, &entry);
+	if (dlg.exec ()) {
+		if (!m_individual_files)
+			slot_rescan ();
+	}
 }
 
 void MainWindow::next_image (bool)
@@ -1267,6 +1283,7 @@ MainWindow::MainWindow (const QStringList &files)
 	ui->imageView->setScene (&m_canvas);
 
 	ui->action_ShowMenubar->setChecked (true);
+	ui->action_Rename->setEnabled (false);
 
 	restore_geometry ();
 
@@ -1280,11 +1297,10 @@ MainWindow::MainWindow (const QStringList &files)
 		if (fi.exists () && fi.isDir ())
 			scan (f);
 	}
-	bool individual_files = false;
 	for (auto f: files) {
 		QFileInfo fi (files[0]);
 		if (fi.exists () && !fi.isDir ()) {
-			individual_files = true;
+			m_individual_files = true;
 			scan (f);
 		}
 	}
@@ -1312,8 +1328,9 @@ MainWindow::MainWindow (const QStringList &files)
 	connect (ui->imageView, &SizeGraphicsView::mouse_event, this, &MainWindow::image_mouse_event);
 	connect (ui->imageView, &SizeGraphicsView::wheel_event, this, &MainWindow::image_wheel_event);
 
-	ui->action_Rescan->setEnabled (!individual_files);
+	ui->action_Rescan->setEnabled (!m_individual_files);
 	connect (ui->action_Rescan, &QAction::triggered, this, &MainWindow::slot_rescan);
+	connect (ui->action_Rename, &QAction::triggered, this, &MainWindow::slot_rename);
 
 	connect (ui->action_Next, &QAction::triggered, this, &MainWindow::next_image);
 	connect (ui->action_Prev, &QAction::triggered, this, &MainWindow::prev_image);
@@ -1364,7 +1381,7 @@ MainWindow::MainWindow (const QStringList &files)
 	fa->setShortcut(Qt::Key_F);
 	ta->setShortcut(Qt::Key_T);
 
-	addActions ({ ui->action_Quit });
+	addActions ({ ui->action_Quit, ui->action_Rename, ui->action_Rescan });
 	addActions ({ fa, ta });
 	addActions ({ ui->action_ShowMenubar });
 	addActions ({ ui->action_Scale });
