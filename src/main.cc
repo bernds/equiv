@@ -335,15 +335,21 @@ void MainWindow::discard_entries ()
 	m_model.reset ();
 }
 
-void MainWindow::scan_cwd ()
+int MainWindow::scan_cwd (QString prev_entry_name)
 {
+	int new_idx = -1;
 	auto dirlist = m_cwd.entryInfoList (QDir::Dirs | QDir::NoDot, QDir::Name);
 	auto filelist = m_cwd.entryInfoList (QDir::Files, QDir::Name);
 	for (auto &dn: dirlist)
 		m_model.vec.emplace_back (m_cwd, dn.fileName (), true);
 	m_first_file_idx = m_model.vec.size ();
-	for (auto &fn: filelist)
-		m_model.vec.emplace_back (m_cwd, fn.fileName (), false);
+	for (auto &fn: filelist) {
+		QString s = fn.fileName ();
+		m_model.vec.emplace_back (m_cwd, s, false);
+		if (!prev_entry_name.isEmpty () && s == prev_entry_name)
+			new_idx = m_model.vec.size () - 1;
+	}
+	return new_idx;
 }
 
 /* Used in only one place: to scan arguments given on the command line.  */
@@ -814,6 +820,21 @@ void MainWindow::files_doubleclick ()
 	}
 }
 
+void MainWindow::slot_rescan (bool)
+{
+	QString cur;
+	if (m_idx != -1) {
+		auto &entry = m_model.vec[m_idx];
+		if (!entry.isdir) {
+			cur = entry.name;
+		}
+	}
+	discard_entries ();
+	int idx = scan_cwd (cur);
+	if (idx != -1)
+		switch_to (idx);
+}
+
 void MainWindow::next_image (bool)
 {
 	if (m_idx == -1)
@@ -1259,10 +1280,13 @@ MainWindow::MainWindow (const QStringList &files)
 		if (fi.exists () && fi.isDir ())
 			scan (f);
 	}
+	bool individual_files = false;
 	for (auto f: files) {
 		QFileInfo fi (files[0]);
-		if (fi.exists () && !fi.isDir ())
+		if (fi.exists () && !fi.isDir ()) {
+			individual_files = true;
 			scan (f);
+		}
 	}
 
 	// Not ready
@@ -1287,6 +1311,9 @@ MainWindow::MainWindow (const QStringList &files)
 
 	connect (ui->imageView, &SizeGraphicsView::mouse_event, this, &MainWindow::image_mouse_event);
 	connect (ui->imageView, &SizeGraphicsView::wheel_event, this, &MainWindow::image_wheel_event);
+
+	ui->action_Rescan->setEnabled (!individual_files);
+	connect (ui->action_Rescan, &QAction::triggered, this, &MainWindow::slot_rescan);
 
 	connect (ui->action_Next, &QAction::triggered, this, &MainWindow::next_image);
 	connect (ui->action_Prev, &QAction::triggered, this, &MainWindow::prev_image);

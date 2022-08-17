@@ -159,6 +159,7 @@ class MainWindow: public QMainWindow
 
 	void slot_render_complete (int idx);
 	void slot_save_as (bool);
+	void slot_rescan (bool);
 
 	void pick_wb (QMouseEvent *);
 	void image_mouse_event (QMouseEvent *);
@@ -188,7 +189,7 @@ class MainWindow: public QMainWindow
 	void sync_to_db ();
 
 	void discard_entries ();
-	void scan_cwd ();
+	int scan_cwd (QString = QString ());
 	void scan (const QString &);
 
 	void perform_setup ();

@@ -71,6 +71,8 @@
     <property name="title">
      <string>&amp;File</string>
     </property>
+    <addaction name="action_Rescan"/>
+    <addaction name="separator"/>
     <addaction name="action_Quit"/>
    </widget>
    <widget class="QMenu" name="menuSettings">
@@ -913,6 +915,17 @@
    </property>
    <property name="shortcut">
     <string>Shift+R</string>
+   </property>
+  </action>
+  <action name="action_Rescan">
+   <property name="text">
+    <string>Rescan files</string>
+   </property>
+   <property name="toolTip">
+    <string>Rescan files</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+R</string>
    </property>
   </action>
  </widget>
