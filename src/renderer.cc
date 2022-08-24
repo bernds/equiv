@@ -51,7 +51,7 @@ void Renderer::do_render ()
 {
 }
 
-void Renderer::slot_render (int idx, img *e, img_tweaks *tw, int w, int h, bool tweaked)
+void Renderer::slot_render (int idx, int gen, img *e, img_tweaks *tw, int w, int h, bool tweaked)
 {
 	// printf ("start render %d: %d x %d rot %d (was %d)\n", idx, w, h, tw->rot, e->render_rot);
 	mutex.lock ();
@@ -190,6 +190,6 @@ void Renderer::slot_render (int idx, img *e, img_tweaks *tw, int w, int h, bool 
 	}
 	completion_sem.release ();
 	// printf ("end render %d\n", idx);
-	emit signal_render_complete (idx);
+	emit signal_render_complete (idx, gen);
 }
 

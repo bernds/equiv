@@ -67,9 +67,9 @@ public:
 	std::atomic<bool> abort_render { false };
 
 	void do_render ();
-	void slot_render (int idx, img *, img_tweaks *, int w, int h, bool);
+	void slot_render (int idx, int gen, img *, img_tweaks *, int w, int h, bool);
 signals:
-	void signal_render_complete (int idx);
+	void signal_render_complete (int idx, int gen);
 };
 
 class MainWindow: public QMainWindow
@@ -113,6 +113,7 @@ class MainWindow: public QMainWindow
 	QDir m_cwd;
 	std::unique_ptr<QSettings> m_img_settings;
 	simple_fs_model m_model;
+	int m_model_gen = 0;
 	int m_idx = -1;
 	int m_first_file_idx = -1;
 	dir_entry *m_lru {};
@@ -133,6 +134,8 @@ class MainWindow: public QMainWindow
 
 	void add_to_lru (dir_entry &);
 	void prune_lru (int leave = 5);
+
+	void update_model_gen ();
 
 	void slide_elapsed ();
 	void perform_resizes ();
@@ -159,10 +162,11 @@ class MainWindow: public QMainWindow
 
 	void rotate (int adjust);
 
-	void slot_render_complete (int idx);
+	void slot_render_complete (int idx, int gen);
 	void slot_save_as (bool);
 	void slot_rescan (bool = false);
 	void slot_rename (bool);
+	void slot_delete (bool);
 
 	void pick_wb (QMouseEvent *);
 	void image_mouse_event (QMouseEvent *);
@@ -207,7 +211,7 @@ public:
 	~MainWindow ();
 
 signals:
-	void signal_render (int idx, img *, img_tweaks *, int w, int h, bool);
+	void signal_render (int idx, int gen, img *, img_tweaks *, int w, int h, bool);
 
 };
 

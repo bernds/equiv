@@ -313,17 +313,26 @@ void MainWindow::help_about ()
 	mb.exec ();
 }
 
-void MainWindow::discard_entries ()
+/* Prepare for a change of the item model by flushing the render thread and
+   increasing the generation number.  */
+void MainWindow::update_model_gen ()
 {
 	/* First, wait for the render thread to complete its current job.  We then flush
 	   the queue so that any call to slot_render_complete just exits.  */
 	m_renderer->completion_sem.acquire ();
 	m_renderer->completion_sem.release ();
+	m_model_gen++;
+}
+
+void MainWindow::discard_entries ()
+{
+	update_model_gen ();
 
 	bool_changer bc (m_inhibit_updates, true);
 
 	m_idx = -1;
 	ui->action_Rename->setEnabled (false);
+	ui->action_Delete->setEnabled (false);
 	m_next_slide = -1;
 	delete m_img;
 	m_img = nullptr;
@@ -446,14 +455,17 @@ void MainWindow::restart_render ()
 		m_render_queued = true;
 		bool tweaked = ui->tweaksGroupBox->isChecked ();
 		img_tweaks *tw = tweaked ? &entry.tweaks : &m_no_tweaks;
-		emit signal_render (q.idx, entry.images.get (), tw, sz.width (), sz.height (),
+		emit signal_render (q.idx, m_model_gen, entry.images.get (), tw, sz.width (), sz.height (),
 				    tweaked);
 		break;
 	}
 }
 
-void MainWindow::slot_render_complete (int idx)
+void MainWindow::slot_render_complete (int idx, int gen)
 {
+	if (gen != m_model_gen)
+		return;
+
 	// printf ("render complete: %d\n", idx);
 	m_render_queued = false;
 	prune_lru ();
@@ -758,6 +770,7 @@ bool MainWindow::switch_to (int idx)
 
 	m_idx = idx;
 	ui->action_Rename->setEnabled (idx != -1);
+	ui->action_Delete->setEnabled (idx != -1);
 
 	auto &entry = m_model.vec[m_idx];
 	entry.lru_remove ();
@@ -849,6 +862,33 @@ void MainWindow::slot_rename (bool)
 		if (!m_individual_files)
 			slot_rescan ();
 	}
+}
+
+void MainWindow::slot_delete (bool)
+{
+	QString cur;
+	if (m_idx == -1)
+		/* Shouldn't happen.  */
+		return;
+	auto &entry = m_model.vec[m_idx];
+	QMessageBox mb (QMessageBox::Question, tr ("Really delete file"),
+			tr ("Do you really want to delete \"%1\" in directory \"%2\"?").arg (entry.name).arg(entry.dir.absolutePath ()),
+			QMessageBox::Yes | QMessageBox::No);
+	if (mb.exec () != QMessageBox::Yes)
+		return;
+
+	if (entry.dir.remove (entry.name)) {
+		update_model_gen ();
+		m_lru = nullptr;
+		int idx = m_idx;
+		{
+			bool_changer bc (m_inhibit_updates, true);
+			m_model.removeRows (idx, 1);
+		}
+		m_idx = -1;
+		update_selection ();
+	} else
+		QMessageBox::warning (this, PACKAGE, tr ("The delete operation failed."));
 }
 
 void MainWindow::next_image (bool)
@@ -1284,6 +1324,7 @@ MainWindow::MainWindow (const QStringList &files)
 
 	ui->action_ShowMenubar->setChecked (true);
 	ui->action_Rename->setEnabled (false);
+	ui->action_Delete->setEnabled (false);
 
 	restore_geometry ();
 
@@ -1331,6 +1372,7 @@ MainWindow::MainWindow (const QStringList &files)
 	ui->action_Rescan->setEnabled (!m_individual_files);
 	connect (ui->action_Rescan, &QAction::triggered, this, &MainWindow::slot_rescan);
 	connect (ui->action_Rename, &QAction::triggered, this, &MainWindow::slot_rename);
+	connect (ui->action_Delete, &QAction::triggered, this, &MainWindow::slot_delete);
 
 	connect (ui->action_Next, &QAction::triggered, this, &MainWindow::next_image);
 	connect (ui->action_Prev, &QAction::triggered, this, &MainWindow::prev_image);
@@ -1381,7 +1423,7 @@ MainWindow::MainWindow (const QStringList &files)
 	fa->setShortcut(Qt::Key_F);
 	ta->setShortcut(Qt::Key_T);
 
-	addActions ({ ui->action_Quit, ui->action_Rename, ui->action_Rescan });
+	addActions ({ ui->action_Quit, ui->action_Rename, ui->action_Delete, ui->action_Rescan });
 	addActions ({ fa, ta });
 	addActions ({ ui->action_ShowMenubar });
 	addActions ({ ui->action_Scale });
