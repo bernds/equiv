@@ -242,6 +242,16 @@
             </widget>
            </item>
            <item>
+            <widget class="QPushButton" name="blackAutoButton">
+             <property name="text">
+              <string>Auto</string>
+             </property>
+             <property name="checkable">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
             <widget class="QToolButton" name="blackClearButton">
              <property name="text">
               <string>Clear</string>
@@ -253,16 +263,6 @@
             </widget>
            </item>
           </layout>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="blackAutoButton">
-          <property name="text">
-           <string>Auto</string>
-          </property>
-          <property name="checkable">
-           <bool>false</bool>
-          </property>
          </widget>
         </item>
         <item>
