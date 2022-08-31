@@ -179,7 +179,13 @@ void Renderer::slot_render (int idx, int gen, img *e, img_tweaks *tw, int w, int
 			}
 			corrected = QPixmap::fromImage (tmp.convertToFormat (QImage::Format_ARGB32));
 		}
-		QPixmap scaled = corrected.scaled (w, h, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+		QSize ts (corrected.width (), corrected.height ());
+		ts.scale (w, h, Qt::KeepAspectRatio);
+		// Scale to exactly w and h: these were calculated with the right aspect ratio.
+		// If we use KeepAspectRatio here, Qt can produce a new size that differs by one
+		// pixel in one of the dimensions, causing us to not use the scaled image.
+		QPixmap scaled = corrected.scaled (w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+		// printf ("scaling: %dx%d vs %dx%d\n", scaled.width (), scaled.height (), ts.width (), ts.height ());
 		QMutexLocker lock (&mutex);
 		e->linear = linear;
 		e->corrected = corrected;

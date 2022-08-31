@@ -89,6 +89,8 @@
     </property>
     <addaction name="action_RCW"/>
     <addaction name="action_RCCW"/>
+    <addaction name="action_DSize"/>
+    <addaction name="action_HSize"/>
    </widget>
    <addaction name="menu_File"/>
    <addaction name="menu_View"/>
@@ -760,10 +762,47 @@
       </widget>
      </item>
      <item>
-      <widget class="QCheckBox" name="scaleCheckBox">
-       <property name="text">
-        <string>Scale to fit</string>
-       </property>
+      <widget class="QWidget" name="widget" native="true">
+       <layout class="QHBoxLayout" name="horizontalLayout">
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <widget class="QLabel" name="label_2">
+          <property name="text">
+           <string>Scaling:</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QComboBox" name="scaleComboBox">
+          <item>
+           <property name="text">
+            <string>None/Free</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Fit Width</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Fit</string>
+           </property>
+          </item>
+         </widget>
+        </item>
+       </layout>
       </widget>
      </item>
      <item>
@@ -950,6 +989,39 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+D</string>
+   </property>
+  </action>
+  <action name="action_DSize">
+   <property name="text">
+    <string>Double size</string>
+   </property>
+   <property name="toolTip">
+    <string>Double size</string>
+   </property>
+   <property name="shortcut">
+    <string>D</string>
+   </property>
+  </action>
+  <action name="action_HSize">
+   <property name="text">
+    <string>Half size</string>
+   </property>
+   <property name="toolTip">
+    <string>Half size</string>
+   </property>
+   <property name="shortcut">
+    <string>Shift+D</string>
+   </property>
+  </action>
+  <action name="action_ZReset">
+   <property name="text">
+    <string>Reset zoom</string>
+   </property>
+   <property name="toolTip">
+    <string>Reset zoom</string>
+   </property>
+   <property name="shortcut">
+    <string>1</string>
    </property>
   </action>
  </widget>

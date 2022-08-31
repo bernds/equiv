@@ -105,7 +105,12 @@ class MainWindow: public QMainWindow
 
 	QGraphicsScene m_canvas;
 	QGraphicsPixmapItem *m_img {};
+
+	// We have several scaling options: unscaled, fit width, and fit window.
+	// However, "unscaled" is only unscaled by default, it actually allows
+	// for free scaling using D/shift-D, as in xzgv.
 	double m_img_scale = 1;
+	double m_free_scale = 1;
 
 	size_t m_cur_img_size = 0;
 	int m_cur_img_nlink = 0;
@@ -189,6 +194,7 @@ class MainWindow: public QMainWindow
 
 	QString load (int idx, bool queue = true);
 	void load_adjustments (dir_entry &);
+	QSize size_for_image (const dir_entry &, bool);
 	void rescale_current ();
 	bool switch_to (int idx);
 

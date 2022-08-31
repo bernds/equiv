@@ -201,14 +201,16 @@ void MainWindow::prune_lru (int leave)
 
 void MainWindow::image_wheel_event (QWheelEvent *e)
 {
-#if 0
 	if (e->angleDelta().y() == 0)
 		return;
+
+	bool_changer bc (m_inhibit_updates, true);
+	ui->scaleComboBox->setCurrentIndex (0);
 	if (e->angleDelta().y() < 0)
-		zoom_out ();
+		m_free_scale /= 1.1;
 	else
-		zoom_in ();
-#endif
+		m_free_scale *= 1.1;
+	scale_changed (0);
 }
 
 void MainWindow::pick_wb (QMouseEvent *e)
@@ -446,7 +448,6 @@ void MainWindow::restart_render ()
 			img->corrected = QPixmap ();
 			img->scaled = QPixmap ();
 		}
-		QSize sz = ui->imageView->viewport ()->size ();
 		if (r->completion_sem.available () == 0)
 			abort ();
 		// printf ("queue render %d, wait (%d)\n", q.idx, r->completion_sem.available ());
@@ -455,6 +456,7 @@ void MainWindow::restart_render ()
 		m_render_queued = true;
 		bool tweaked = ui->tweaksGroupBox->isChecked ();
 		img_tweaks *tw = tweaked ? &entry.tweaks : &m_no_tweaks;
+		QSize sz = size_for_image (entry, false);
 		emit signal_render (q.idx, m_model_gen, entry.images.get (), tw, sz.width (), sz.height (),
 				    tweaked);
 		break;
@@ -605,12 +607,48 @@ void MainWindow::update_background ()
 	ui->imageView->setBackgroundBrush (c);
 }
 
+QSize MainWindow::size_for_image (const dir_entry &entry, bool shown)
+{
+	int scale_idx = ui->scaleComboBox->currentIndex ();
+	bool do_scale = scale_idx > 0 || m_free_scale != 1;
+
+	img *img = entry.images.get ();
+	if (img->on_disk.isNull ())
+		return QSize ();
+
+	update_background ();
+
+	QSize img_sz = img->on_disk.size ();
+	if (entry.tweaks.rot == 90 || entry.tweaks.rot == 270)
+		img_sz.transpose ();
+
+	QSize wanted_sz = img_sz;
+
+	if (scale_idx == 0) {
+		wanted_sz *= m_free_scale;
+		if (shown)
+			m_img_scale = m_free_scale;
+	} else {
+		QSize sz = ui->imageView->viewport ()->size ();
+		QSize scale_sz = sz;
+		if (scale_idx == 1)
+			scale_sz.setHeight (INT_MAX);
+		wanted_sz.scale (scale_sz, Qt::KeepAspectRatio);
+		if (shown) {
+			m_img_scale = wanted_sz.width () == 0 ? 1 : (double)img_sz.width () / wanted_sz.width ();
+		}
+	}
+
+	return wanted_sz;
+}
+
 void MainWindow::rescale_current ()
 {
 	if (m_idx == -1)
 		return;
 
-	bool do_scale = ui->scaleCheckBox->isChecked ();
+	int scale_idx = ui->scaleComboBox->currentIndex ();
+	bool do_scale = scale_idx > 0 || m_free_scale != 1;
 
 	auto &entry = m_model.vec[m_idx];
 	img *img = entry.images.get ();
@@ -628,15 +666,7 @@ void MainWindow::rescale_current ()
 
 	// line_terminator lt (stdout);
 
-	QSize img_sz = img->on_disk.size ();
-	QSize wanted_sz = img_sz;
-	if (entry.tweaks.rot == 90 || entry.tweaks.rot == 270) {
-		img_sz.transpose ();
-		wanted_sz.transpose ();
-	}
-	QSize sz = ui->imageView->viewport ()->size ();
-	wanted_sz.scale (sz, Qt::KeepAspectRatio);
-	m_img_scale = !do_scale ? 1 : wanted_sz.width () == 0 ? 1 : (double)img_sz.width () / wanted_sz.width ();
+	QSize wanted_sz = size_for_image (entry, true);
 
 	bool preferred_good = false;
 	if (!preferred.isNull ()) {
@@ -676,12 +706,14 @@ void MainWindow::rescale_current ()
 	}
 	m_canvas.setSceneRect (m_canvas.itemsBoundingRect ());
 	QSize imgsz = final_img.size ();
-	QSize newsz = sz;
-	newsz -= imgsz;
-	// printf ("%d %d %d %d -> %d %d", sz.width (), sz.height (), imgsz.width (), imgsz.height (), newsz.width (), newsz.height ());
+	QSize sz = ui->imageView->viewport ()->size ();
+	QSize newsz = sz - imgsz;
+	// printf ("%d %d %d %d -> %d %d\n", sz.width (), sz.height (), imgsz.width (), imgsz.height (), newsz.width (), newsz.height ());
 #if 1
 	if (do_scale) {
-		QRect sr (QPoint (-newsz.width () / 2, -newsz.height () / 2), sz);
+		QPoint p (0, 0);
+		QRect sr (p, imgsz);
+		m_img->setPos (p);
 		m_canvas.setSceneRect (sr);
 	}
 #else
@@ -689,11 +721,18 @@ void MainWindow::rescale_current ()
 #endif
 }
 
-void MainWindow::scale_changed (int state)
+void MainWindow::scale_changed (int idx)
 {
-	Qt::ScrollBarPolicy pol = state == Qt::Unchecked ? Qt::ScrollBarAsNeeded : Qt::ScrollBarAlwaysOff;
-	ui->imageView->setVerticalScrollBarPolicy (pol);
-	ui->imageView->setHorizontalScrollBarPolicy (pol);
+	Qt::ScrollBarPolicy hpol = idx > 1 ? Qt::ScrollBarAsNeeded : Qt::ScrollBarAlwaysOff;
+	Qt::ScrollBarPolicy vpol = idx > 0 ? Qt::ScrollBarAsNeeded : Qt::ScrollBarAlwaysOff;
+	if (idx == 0 && m_free_scale > 1)
+		hpol = vpol = Qt::ScrollBarAsNeeded;
+	ui->imageView->setVerticalScrollBarPolicy (vpol);
+	ui->imageView->setHorizontalScrollBarPolicy (hpol);
+	{
+		bool_changer bc (m_inhibit_updates, true);
+		ui->scaleComboBox->setCurrentIndex (idx);
+	}
 	rescale_current ();
 }
 
@@ -1273,7 +1312,7 @@ void MainWindow::restore_geometry ()
 	restoreGeometry (settings.value("mainwin/geometry").toByteArray());
 	restoreState (settings.value("mainwin/windowState").toByteArray());
 	if (settings.contains("mainwin/scaleState"))
-		ui->scaleCheckBox->setChecked (settings.value("mainwin/scaleState").toBool ());
+		ui->scaleComboBox->setCurrentIndex (settings.value("mainwin/scaleState").toBool () ? 2 : 0);
 	if (settings.contains("mainwin/showmenu"))
 		ui->action_ShowMenubar->setChecked (settings.value("mainwin/showmenu").toBool ());
 }
@@ -1290,7 +1329,7 @@ void MainWindow::closeEvent (QCloseEvent *event)
 	settings.setValue ("mainwin/geometry", saveGeometry ());
 	settings.setValue ("mainwin/windowState", saveState ());
 	settings.setValue ("mainwin/showmenu", ui->action_ShowMenubar->isChecked ());
-	settings.setValue ("mainwin/scaleState", ui->scaleCheckBox->isChecked ());
+	settings.setValue ("mainwin/scaleState", ui->scaleComboBox->currentIndex () != 0);
 
 	QMainWindow::closeEvent (event);
 }
@@ -1412,8 +1451,33 @@ MainWindow::MainWindow (const QStringList &files)
 	connect (ui->action_RCW, &QAction::triggered, [this] (bool) { rotate (90); });
 	connect (ui->action_RCCW, &QAction::triggered, [this] (bool) { rotate (-90); });
 
-	connect (ui->action_Scale, &QAction::triggered, ui->scaleCheckBox, &QCheckBox::toggle);
-	connect (ui->scaleCheckBox, &QCheckBox::stateChanged, this, &MainWindow::scale_changed);
+	connect (ui->action_Scale, &QAction::triggered,
+		 [this] (bool)
+		 {
+			 int idx = ui->scaleComboBox->currentIndex ();
+			 idx = (idx + 1) % 3;
+			 m_free_scale = 1;
+			 ui->scaleComboBox->setCurrentIndex (idx);
+		 });
+	connect (ui->action_DSize, &QAction::triggered,
+		 [this] (bool)
+		 {
+			 m_free_scale *= 2;
+			 scale_changed (0);
+		 });
+	connect (ui->action_HSize, &QAction::triggered,
+		 [this] (bool)
+		 {
+			 m_free_scale /= 2;
+			 scale_changed (0);
+		 });
+	connect (ui->action_ZReset, &QAction::triggered,
+		 [this] (bool)
+		 {
+			 m_free_scale = 1;
+			 scale_changed (0);
+		 });
+	connect (ui->scaleComboBox, cic, this, &MainWindow::scale_changed);
 
 	QAction *view_first = ui->menu_View->actions().at(0);
 	QAction *fa = ui->filesDock->toggleViewAction ();
@@ -1426,9 +1490,9 @@ MainWindow::MainWindow (const QStringList &files)
 	addActions ({ ui->action_Quit, ui->action_Rename, ui->action_Delete, ui->action_Rescan });
 	addActions ({ fa, ta });
 	addActions ({ ui->action_ShowMenubar });
-	addActions ({ ui->action_Scale });
+	addActions ({ ui->action_Scale, ui->action_ZReset });
 	addActions ({ ui->action_Copy, ui->action_Paste });
-	addActions ({ ui->action_RCW, ui->action_RCCW });
+	addActions ({ ui->action_RCW, ui->action_RCCW, ui->action_DSize, ui->action_HSize });
 	addActions ({ ui->action_Next, ui->action_Prev, ui->action_Slideshow, ui->action_Stop });
 }
 
