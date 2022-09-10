@@ -776,6 +776,16 @@ void MainWindow::update_tweaks_ui (const dir_entry &entry)
 	update_wbcol_button (entry.tweaks.white);
 }
 
+void MainWindow::clear_lru ()
+{
+	while (m_lru != nullptr) {
+		auto *p = m_lru;
+		m_lru = p->lru_next;
+		p->lru_pprev = nullptr;
+		p->lru_next = nullptr;
+	}
+}
+
 void MainWindow::add_to_lru (dir_entry &entry)
 {
 	if (entry.lru_pprev != nullptr)
@@ -918,7 +928,7 @@ void MainWindow::slot_delete (bool)
 
 	if (entry.dir.remove (entry.name)) {
 		update_model_gen ();
-		m_lru = nullptr;
+		clear_lru ();
 		int idx = m_idx;
 		{
 			bool_changer bc (m_inhibit_updates, true);

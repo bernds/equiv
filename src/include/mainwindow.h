@@ -139,6 +139,7 @@ class MainWindow: public QMainWindow
 
 	void add_to_lru (dir_entry &);
 	void prune_lru (int leave = 5);
+	void clear_lru ();
 
 	void update_model_gen ();
 
