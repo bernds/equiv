@@ -673,7 +673,8 @@ void MainWindow::rescale_current ()
 		QSize existing_sz = preferred.size ();
 		// printf ("found preferred %d x %d", existing_sz.width (), existing_sz.height ());
 		if (entry.tweaks.rot == entry.images->render_rot
-		    && entry.tweaks.cspace_idx == entry.images->linear_cspace_idx
+		    && (!ui->tweaksGroupBox->isChecked ()
+			|| entry.tweaks.cspace_idx == entry.images->linear_cspace_idx)
 		    && ui->tweaksGroupBox->isChecked () == entry.images->render_tweaks
 		    && (!do_scale || wanted_sz == existing_sz))
 		{
