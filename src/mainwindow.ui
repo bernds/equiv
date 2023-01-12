@@ -89,6 +89,9 @@
     </property>
     <addaction name="action_RCW"/>
     <addaction name="action_RCCW"/>
+    <addaction name="action_MH"/>
+    <addaction name="action_FV"/>
+    <addaction name="separator"/>
     <addaction name="action_DSize"/>
     <addaction name="action_HSize"/>
    </widget>
@@ -1022,6 +1025,28 @@
    </property>
    <property name="shortcut">
     <string>1</string>
+   </property>
+  </action>
+  <action name="action_MH">
+   <property name="text">
+    <string>Mirror horizontally</string>
+   </property>
+   <property name="toolTip">
+    <string>Mirror horizontally</string>
+   </property>
+   <property name="shortcut">
+    <string>M</string>
+   </property>
+  </action>
+  <action name="action_FV">
+   <property name="text">
+    <string>Flip vertically</string>
+   </property>
+   <property name="toolTip">
+    <string>Flip vertically</string>
+   </property>
+   <property name="shortcut">
+    <string>Shift+M</string>
    </property>
   </action>
  </widget>

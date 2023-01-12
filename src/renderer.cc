@@ -116,7 +116,7 @@ void Renderer::slot_render (int idx, int gen, img *e, img_tweaks *tw, int w, int
 		double glimit = 65535. / (e->l_maxg * fg);
 		double blimit = 65535. / (e->l_maxb * fb);
 		double limit = std::min ({ 1.0, rlimit, glimit, blimit });
-		if (corrected.isNull () || e->render_tweaks != tweaked || e->render_rot != tw->rot) {
+		if (corrected.isNull () || e->render_tweaks != tweaked || e->render_rot != tw->rot || e->render_mirror != tw->mirrored) {
 			QImage tmp = linear;
 			double gammaval = 1 + tw->gamma / 100.1;
 			double satval = -tw->sat / 100.;
@@ -172,11 +172,14 @@ void Renderer::slot_render (int idx, int gen, img *e, img_tweaks *tw, int w, int
 			}
 #endif
 			tmp.convertToColorSpace (QColorSpace::SRgb);
-			if (tw->rot != 0) {
-				QTransform t;
+			QTransform t;
+			if (tw->rot != 0)
 				t.rotate (tw->rot);
-				tmp = tmp.transformed (t);
+			if (tw->mirrored) {
+				t.scale(-1, 1);
 			}
+			if (tw->rot != 0 || tw->mirrored)
+				tmp = tmp.transformed (t);
 			corrected = QPixmap::fromImage (tmp.convertToFormat (QImage::Format_ARGB32));
 		}
 		QSize ts (corrected.width (), corrected.height ());
@@ -191,6 +194,7 @@ void Renderer::slot_render (int idx, int gen, img *e, img_tweaks *tw, int w, int
 		e->corrected = corrected;
 		e->scaled = scaled;
 		e->render_rot = tw->rot;
+		e->render_mirror = tw->mirrored;
 		e->linear_cspace_idx = tw->cspace_idx;
 		e->render_tweaks = tweaked;
 	}

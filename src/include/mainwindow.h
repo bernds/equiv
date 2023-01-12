@@ -167,6 +167,7 @@ class MainWindow: public QMainWindow
 	void clear_cspace (bool = false);
 
 	void rotate (int adjust);
+	void mirror (bool vertical);
 
 	void slot_render_complete (int idx, int gen);
 	void slot_save_as (bool);

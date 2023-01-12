@@ -60,6 +60,8 @@ QString img_tweaks::to_string () const
 		str += "br:" + QString::number (brightness) + ";";
 	if (rot != 0)
 		str += "rot:" + QString::number (rot) + ";";
+	if (mirrored != 0)
+		str += "mir;";
 	if (cspace_idx != 0)
 		str += "cs:" + QString::number (cspace_idx) + ";";
 	str += unknown_tags;
@@ -114,6 +116,7 @@ bool img_tweaks::from_string (QString s)
 	static QRegularExpression re_gamma ("g:(-?\\d+);");
 	static QRegularExpression re_brite ("br:(-?\\d+);");
 	static QRegularExpression re_rot ("rot:(\\d+);");
+	static QRegularExpression re_mir ("mir;");
 	static QRegularExpression re_cs ("cs:(\\d+);");
 	auto result_b = re_b.match (s);
 	auto result_wb = re_wb.match (s);
@@ -121,6 +124,7 @@ bool img_tweaks::from_string (QString s)
 	auto result_gamma = re_gamma.match (s);
 	auto result_brite = re_brite.match (s);
 	auto result_rot = re_rot.match (s);
+	auto result_mir = re_mir.match (s);
 	auto result_cs = re_cs.match (s);
 	if (result_b.hasMatch ())
 		blacklevel = result_b.captured (1).toInt ();
@@ -137,6 +141,7 @@ bool img_tweaks::from_string (QString s)
 		brightness = result_brite.captured (1).toInt ();
 	if (result_rot.hasMatch ())
 		rot = result_rot.captured (1).toInt ();
+	mirrored = result_mir.hasMatch ();
 	if (result_wb.hasMatch ()) {
 		white.setRed (result_wb.captured (1).toInt ());
 		white.setGreen (result_wb.captured (2).toInt ());
@@ -154,6 +159,7 @@ bool img_tweaks::from_string (QString s)
 	s.replace (re_gamma, "");
 	s.replace (re_brite, "");
 	s.replace (re_rot, "");
+	s.replace (re_mir, "");
 	s.replace (re_cs, "");
 	unknown_tags = s;
 #if 0
@@ -673,6 +679,7 @@ void MainWindow::rescale_current ()
 		QSize existing_sz = preferred.size ();
 		// printf ("found preferred %d x %d", existing_sz.width (), existing_sz.height ());
 		if (entry.tweaks.rot == entry.images->render_rot
+		    && entry.tweaks.mirrored == entry.images->render_mirror
 		    && (!ui->tweaksGroupBox->isChecked ()
 			|| entry.tweaks.cspace_idx == entry.images->linear_cspace_idx)
 		    && ui->tweaksGroupBox->isChecked () == entry.images->render_tweaks
@@ -690,9 +697,11 @@ void MainWindow::rescale_current ()
 	QPixmap final_img = preferred;
 	if (!preferred_good) {
 		final_img = img->on_disk;
-		if (entry.tweaks.rot != 0) {
+		if (entry.tweaks.rot != 0 || entry.tweaks.mirrored) {
 			QTransform t;
 			t.rotate (entry.tweaks.rot);
+			if (entry.tweaks.mirrored)
+				t.scale(-1, 1);
 			final_img = final_img.transformed (t);
 		}
 		if (do_scale)
@@ -751,6 +760,26 @@ void MainWindow::rotate (int r)
 	if (entry.tweaks.rot < 0)
 		entry.tweaks.rot += 360;
 	else if (entry.tweaks.rot >= 360)
+		entry.tweaks.rot -= 360;
+
+	send_tweaks_to_db (entry);
+	rescale_current ();
+}
+
+void MainWindow::mirror (bool vertical)
+{
+	if (m_idx == -1)
+		return;
+
+	auto &entry = m_model.vec[m_idx];
+	img *img = entry.images.get ();
+	if (img == nullptr || img->on_disk.isNull ())
+		return;
+
+	entry.tweaks.mirrored = !entry.tweaks.mirrored;
+	if (vertical)
+		entry.tweaks.rot += 180;
+	if (entry.tweaks.rot >= 360)
 		entry.tweaks.rot -= 360;
 
 	send_tweaks_to_db (entry);
@@ -1461,6 +1490,8 @@ MainWindow::MainWindow (const QStringList &files)
 
 	connect (ui->action_RCW, &QAction::triggered, [this] (bool) { rotate (90); });
 	connect (ui->action_RCCW, &QAction::triggered, [this] (bool) { rotate (-90); });
+	connect (ui->action_MH, &QAction::triggered, [this] (bool) { mirror (false); });
+	connect (ui->action_FV, &QAction::triggered, [this] (bool) { mirror (true); });
 
 	connect (ui->action_Scale, &QAction::triggered,
 		 [this] (bool)
@@ -1503,7 +1534,7 @@ MainWindow::MainWindow (const QStringList &files)
 	addActions ({ ui->action_ShowMenubar });
 	addActions ({ ui->action_Scale, ui->action_ZReset });
 	addActions ({ ui->action_Copy, ui->action_Paste });
-	addActions ({ ui->action_RCW, ui->action_RCCW, ui->action_DSize, ui->action_HSize });
+	addActions ({ ui->action_RCW, ui->action_RCCW, ui->action_MH, ui->action_FV, ui->action_DSize, ui->action_HSize });
 	addActions ({ ui->action_Next, ui->action_Prev, ui->action_Slideshow, ui->action_Stop });
 }
 

@@ -23,6 +23,7 @@ struct img
 	/* Information about what was applied to the corrected/scaled images.
 	   Used to decide if they are up-to-date or need to be rerendered.  */
 	int render_rot = 0;
+	bool render_mirror = false;
 	bool render_tweaks = false;
 	int linear_cspace_idx = 0;
 
@@ -43,6 +44,7 @@ struct img_tweaks
 	int gamma = 0;
 	int sat = 0;
 	int rot = 0;
+	bool mirrored = false; /* Horizontal */
 
 	QString unknown_tags;
 
