@@ -12,8 +12,14 @@ RenameDialog::RenameDialog (QWidget *parent, dir_entry *e)
 	ui->setupUi (this);
 	ui->oldNameLabel->setText (e->name);
 	ui->dirLabel->setText (e->dir.path ());
+	qsizetype len = e->name.length ();
+	if (len > 5) {
+		qsizetype dot = e->name.lastIndexOf (".");
+		if (dot != -1 && dot + 5 >= len)
+			len = dot;
+	}
 	ui->newNameEdit->setText (e->name);
-	ui->newNameEdit->selectAll ();
+	ui->newNameEdit->setSelection (0, len);
 }
 
 void RenameDialog::accept ()
